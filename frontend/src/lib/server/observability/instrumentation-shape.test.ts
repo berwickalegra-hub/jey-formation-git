@@ -21,7 +21,9 @@ describe('instrumentation.ts shape (OPS-03, OBS-05)', () => {
 
   it('re-exports onRequestError from @sentry/nextjs (named export)', () => {
     // OPS-03 / D-07: required for Next.js 15+ to capture unhandled route errors.
-    expect(src).toMatch(/export\s*\{[^}]*\bonRequestError\b[^}]*\}\s*from\s*['"]@sentry\/nextjs['"]/);
+    expect(src).toMatch(
+      /export\s*\{[^}]*\bonRequestError\b[^}]*\}\s*from\s*['"]@sentry\/nextjs['"]/,
+    );
   });
 
   it('does NOT use export default for onRequestError', () => {

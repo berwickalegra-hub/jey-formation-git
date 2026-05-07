@@ -26,9 +26,7 @@ const localLocks = new Map<string, string>(); // userId → token
  * Without Redis, falls back to a per-process Map (D-20 — dev fallback only;
  * Vercel always has Upstash in prod).
  */
-export async function acquireRefreshLock(
-  userId: string,
-): Promise<(() => Promise<void>) | null> {
+export async function acquireRefreshLock(userId: string): Promise<(() => Promise<void>) | null> {
   const token = randomUUID();
   const key = `refresh-lock:${userId}`;
   const redis = getRedis();

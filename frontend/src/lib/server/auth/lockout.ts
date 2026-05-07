@@ -57,9 +57,7 @@ export async function isLockedOut(email: string): Promise<boolean> {
  * lockout duration) so subsequent calls to `isLockedOut` return true without
  * needing a count read.
  */
-export async function recordFailure(
-  email: string,
-): Promise<{ count: number; locked: boolean }> {
+export async function recordFailure(email: string): Promise<{ count: number; locked: boolean }> {
   const k = memKey(email);
   const redis = getRedis();
   const limit = threshold();

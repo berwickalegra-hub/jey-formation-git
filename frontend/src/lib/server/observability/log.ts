@@ -1,11 +1,7 @@
 // Source: composed from D-13 + the existing createLogger signature in
 // frontend/src/lib/server/logger.ts (read-only here; not modified).
 import 'server-only';
-import {
-  createLogger,
-  type CreateLoggerOptions,
-  type Logger,
-} from '@/lib/server/logger';
+import { createLogger, type CreateLoggerOptions, type Logger } from '@/lib/server/logger';
 import { getRequestId } from './request-context';
 
 /**
@@ -18,9 +14,7 @@ import { getRequestId } from './request-context';
  */
 export function createRequestLogger(options: CreateLoggerOptions = {}): Logger {
   const base = createLogger(options);
-  function decorate(
-    ctx?: Record<string, unknown>,
-  ): Record<string, unknown> | undefined {
+  function decorate(ctx?: Record<string, unknown>): Record<string, unknown> | undefined {
     const requestId = getRequestId();
     if (!requestId) return ctx;
     return { ...(ctx ?? {}), requestId };

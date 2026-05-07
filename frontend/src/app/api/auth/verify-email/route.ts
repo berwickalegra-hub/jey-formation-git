@@ -17,10 +17,7 @@ import { zEmail } from '@/lib/server/zod-helpers';
 import { prisma } from '@/lib/server/prisma';
 import { redis } from '@/lib/server/redis';
 import { createEmailLimiter } from '@/lib/server/middleware/rate-limit-by-email';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 import { log } from '@/lib/server/observability/log';
 import {
   VERIFICATION_CODE_REGEX,
@@ -36,16 +33,13 @@ const Body = z.object({
   code: z.string().regex(VERIFICATION_CODE_REGEX, 'Invalid verification code format'),
 });
 
-const limiter = createEmailLimiter(
-  redis ? { redis } : {},
-  {
-    bucket: 'auth:verify',
-    windowMs: 15 * 60 * 1000, // 15 min (D-08)
-    max: Number(process.env.AUTH_VERIFY_RATE_LIMIT_MAX ?? 5),
-    code: 'TOO_MANY_VERIFY_ATTEMPTS',
-    message: 'Too many verification attempts. Try again later.',
-  },
-);
+const limiter = createEmailLimiter(redis ? { redis } : {}, {
+  bucket: 'auth:verify',
+  windowMs: 15 * 60 * 1000, // 15 min (D-08)
+  max: Number(process.env.AUTH_VERIFY_RATE_LIMIT_MAX ?? 5),
+  code: 'TOO_MANY_VERIFY_ATTEMPTS',
+  message: 'Too many verification attempts. Try again later.',
+});
 
 function formatIssues(err: z.ZodError) {
   return err.errors.map((e) => ({ path: e.path.join('.'), message: e.message }));

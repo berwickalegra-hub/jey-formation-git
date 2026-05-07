@@ -41,9 +41,7 @@ describe('POST /api/auth/reset-password', () => {
       expiresAt: new Date(Date.now() + 60_000),
     } as never);
 
-    const res = await POST(
-      makeReq({ email: 'a@b.com', code: VALID_CODE, newPassword: STRONG_PW }),
-    );
+    const res = await POST(makeReq({ email: 'a@b.com', code: VALID_CODE, newPassword: STRONG_PW }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ ok: true });
@@ -62,9 +60,7 @@ describe('POST /api/auth/reset-password', () => {
     prismaMock.user.findUnique.mockResolvedValue({ id: 'u1' } as never);
     prismaMock.verificationCode.findFirst.mockResolvedValue(null);
 
-    const res = await POST(
-      makeReq({ email: 'a@b.com', code: VALID_CODE, newPassword: STRONG_PW }),
-    );
+    const res = await POST(makeReq({ email: 'a@b.com', code: VALID_CODE, newPassword: STRONG_PW }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('VERIFICATION_CODE_INVALID');
@@ -78,9 +74,7 @@ describe('POST /api/auth/reset-password', () => {
       expiresAt: new Date(Date.now() - 1_000),
     } as never);
 
-    const res = await POST(
-      makeReq({ email: 'a@b.com', code: VALID_CODE, newPassword: STRONG_PW }),
-    );
+    const res = await POST(makeReq({ email: 'a@b.com', code: VALID_CODE, newPassword: STRONG_PW }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('VERIFICATION_CODE_EXPIRED');
@@ -99,9 +93,7 @@ describe('POST /api/auth/reset-password', () => {
   });
 
   it('rejects too-short new passwords with PASSWORD_TOO_SHORT — code NOT consumed', async () => {
-    const res = await POST(
-      makeReq({ email: 'a@b.com', code: VALID_CODE, newPassword: 'short' }),
-    );
+    const res = await POST(makeReq({ email: 'a@b.com', code: VALID_CODE, newPassword: 'short' }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('PASSWORD_TOO_SHORT');
@@ -135,9 +127,7 @@ describe('POST /api/auth/reset-password', () => {
     // findFirst returns null, mirroring the "no code" case.
     prismaMock.verificationCode.findFirst.mockResolvedValue(null);
 
-    const res = await POST(
-      makeReq({ email: 'a@b.com', code: VALID_CODE, newPassword: STRONG_PW }),
-    );
+    const res = await POST(makeReq({ email: 'a@b.com', code: VALID_CODE, newPassword: STRONG_PW }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('VERIFICATION_CODE_INVALID');

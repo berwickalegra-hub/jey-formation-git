@@ -8,9 +8,7 @@ import { mockNextCookies, __cookieStore } from '@/test-utils/mock-cookies';
 mockNextCookies();
 
 vi.mock('@/lib/server/auth', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/server/auth')>(
-    '@/lib/server/auth',
-  );
+  const actual = await vi.importActual<typeof import('@/lib/server/auth')>('@/lib/server/auth');
   return {
     ...actual,
     verifyToken: vi.fn(),

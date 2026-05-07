@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  verificationEmail,
-  resetPasswordEmail,
-} from './email-templates';
+import { verificationEmail, resetPasswordEmail } from './email-templates';
 
 describe('verificationEmail', () => {
   it('returns { subject, html, text } all non-empty', () => {

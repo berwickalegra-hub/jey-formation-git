@@ -18,15 +18,9 @@ import { zEmail } from '@/lib/server/zod-helpers';
 import { prisma } from '@/lib/server/prisma';
 import { redis } from '@/lib/server/redis';
 import { createEmailLimiter } from '@/lib/server/middleware/rate-limit-by-email';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 import { log } from '@/lib/server/observability/log';
-import {
-  VERIFICATION_CODE_REGEX,
-  hashPassword,
-} from '@/lib/server/auth';
+import { VERIFICATION_CODE_REGEX, hashPassword } from '@/lib/server/auth';
 import { isBanned } from '@/lib/server/auth/banned-passwords';
 import { isPwned } from '@/lib/server/auth/hibp';
 
@@ -38,16 +32,13 @@ const Body = z.object({
   newPassword: z.string().min(1),
 });
 
-const limiter = createEmailLimiter(
-  redis ? { redis } : {},
-  {
-    bucket: 'auth:reset',
-    windowMs: 15 * 60 * 1000, // 15 min (D-08)
-    max: Number(process.env.AUTH_RESET_RATE_LIMIT_MAX ?? 5),
-    code: 'TOO_MANY_RESET_ATTEMPTS',
-    message: 'Too many password-reset attempts. Try again later.',
-  },
-);
+const limiter = createEmailLimiter(redis ? { redis } : {}, {
+  bucket: 'auth:reset',
+  windowMs: 15 * 60 * 1000, // 15 min (D-08)
+  max: Number(process.env.AUTH_RESET_RATE_LIMIT_MAX ?? 5),
+  code: 'TOO_MANY_RESET_ATTEMPTS',
+  message: 'Too many password-reset attempts. Try again later.',
+});
 
 function formatIssues(err: z.ZodError) {
   return err.errors.map((e) => ({ path: e.path.join('.'), message: e.message }));

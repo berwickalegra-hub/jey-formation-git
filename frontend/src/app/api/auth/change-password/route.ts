@@ -31,10 +31,7 @@ import { requireAuth } from '@/lib/server/middleware';
 import { isBanned } from '@/lib/server/auth/banned-passwords';
 import { isPwned } from '@/lib/server/auth/hibp';
 import { prisma } from '@/lib/server/prisma';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 import { log } from '@/lib/server/observability/log';
 
 export const runtime = 'nodejs';
@@ -51,10 +48,7 @@ function jsonError(
   requestId: string,
   message?: string,
 ): NextResponse {
-  const res = NextResponse.json(
-    { error: code, ...(message ? { message } : {}) },
-    { status },
-  );
+  const res = NextResponse.json({ error: code, ...(message ? { message } : {}) }, { status });
   res.headers.set('x-request-id', requestId);
   return res;
 }
@@ -83,12 +77,7 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
       const json = await req.json();
       body = Body.parse(json);
     } catch {
-      return jsonError(
-        'VALIDATION_FAILED',
-        400,
-        ctx.requestId,
-        'Invalid request body',
-      );
+      return jsonError('VALIDATION_FAILED', 400, ctx.requestId, 'Invalid request body');
     }
 
     // 4. Password policy — length, banned, optional HIBP. All BEFORE DB read
@@ -110,10 +99,7 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
         'This password is too common — choose another',
       );
     }
-    if (
-      process.env.PASSWORD_HIBP_CHECK === '1' &&
-      (await isPwned(body.newPassword))
-    ) {
+    if (process.env.PASSWORD_HIBP_CHECK === '1' && (await isPwned(body.newPassword))) {
       return jsonError(
         'PASSWORD_PWNED',
         400,
@@ -135,23 +121,13 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
       },
     });
     if (!user || !user.passwordHash) {
-      return jsonError(
-        'INVALID_CREDENTIALS',
-        400,
-        ctx.requestId,
-        'Current password is incorrect',
-      );
+      return jsonError('INVALID_CREDENTIALS', 400, ctx.requestId, 'Current password is incorrect');
     }
 
     // 6. Verify currentPassword.
     const ok = await verifyPassword(body.currentPassword, user.passwordHash);
     if (!ok) {
-      return jsonError(
-        'INVALID_CREDENTIALS',
-        400,
-        ctx.requestId,
-        'Current password is incorrect',
-      );
+      return jsonError('INVALID_CREDENTIALS', 400, ctx.requestId, 'Current password is incorrect');
     }
 
     // 7+8. Hash new password and atomically update passwordHash + tokenVersion.
@@ -176,10 +152,7 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
       email: updated.email,
       tokenVersion: updated.tokenVersion,
     });
-    const refresh = await createRefreshToken(
-      updated.id,
-      updated.tokenVersion,
-    );
+    const refresh = await createRefreshToken(updated.id, updated.tokenVersion);
     await setAuthCookies(access, refresh);
     await setCsrfCookie();
 

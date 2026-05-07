@@ -25,11 +25,10 @@ describe('acquireRefreshLock — Redis path', () => {
     redisStub.set.mockResolvedValueOnce('OK');
     const release = await acquireRefreshLock('u-redis-1');
     expect(release).toBeInstanceOf(Function);
-    expect(redisStub.set).toHaveBeenCalledWith(
-      'refresh-lock:u-redis-1',
-      expect.any(String),
-      { nx: true, ex: 5 },
-    );
+    expect(redisStub.set).toHaveBeenCalledWith('refresh-lock:u-redis-1', expect.any(String), {
+      nx: true,
+      ex: 5,
+    });
   });
 
   it('returns null when SETNX returns null (lock held)', async () => {

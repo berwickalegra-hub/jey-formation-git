@@ -31,9 +31,7 @@ export function verificationEmail(args: VerificationEmailArgs): EmailTemplate {
   };
 }
 
-export function resetPasswordEmail(
-  args: ResetPasswordEmailArgs,
-): EmailTemplate {
+export function resetPasswordEmail(args: ResetPasswordEmailArgs): EmailTemplate {
   return {
     subject: 'Reset your password',
     html: `<p>Hi,</p><p>Your password reset code is <strong>${args.code}</strong>.</p><p>It expires in 15 minutes. If you did not request this, ignore this email.</p>`,

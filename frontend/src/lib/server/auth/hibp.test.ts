@@ -63,9 +63,7 @@ describe('hibp.pwnedCount', () => {
   });
 
   it('returns 0 on non-2xx (fail-open per D-13)', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('Bad Gateway', { status: 502 }),
-    );
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('Bad Gateway', { status: 502 }));
     expect(await pwnedCount('whatever')).toBe(0);
   });
 
@@ -101,9 +99,7 @@ describe('hibp.isPwned', () => {
     const password = 'common';
     const hex = sha1Hex(password);
     const suffix = hex.slice(5);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(`${suffix}:7\n`, { status: 200 }),
-    );
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(`${suffix}:7\n`, { status: 200 }));
     expect(await isPwned(password)).toBe(true);
   });
 

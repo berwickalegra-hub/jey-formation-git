@@ -48,11 +48,7 @@ const mockStore = {
     const entry = store.get(name);
     return entry ? { name: entry.name, value: entry.value } : undefined;
   },
-  set(
-    name: string,
-    value: string,
-    options?: Record<string, unknown>,
-  ): void {
+  set(name: string, value: string, options?: Record<string, unknown>): void {
     store.set(name, { name, value, ...(options ? { options } : {}) });
   },
   delete(name: string): void {

@@ -30,10 +30,7 @@ import { createEmailLimiter } from '@/lib/server/middleware/rate-limit-by-email'
 import { getRedis } from '@/lib/server/redis';
 import { prisma } from '@/lib/server/prisma';
 import { zEmail } from '@/lib/server/zod-helpers';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 import { log } from '@/lib/server/observability/log';
 
 const LoginSchema = z.object({

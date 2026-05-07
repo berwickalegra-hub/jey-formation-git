@@ -81,9 +81,7 @@ export async function requireAuth(authHeader?: string | null): Promise<AuthConte
  * `null` otherwise. Never returns a NextResponse. Use for routes that
  * accept both guests and authenticated callers.
  */
-export async function optionalAuth(
-  authHeader?: string | null,
-): Promise<AuthContext | null> {
+export async function optionalAuth(authHeader?: string | null): Promise<AuthContext | null> {
   const store = await cookies();
   let token = store.get(COOKIE_NAME)?.value;
   if (!token && authHeader && authHeader.startsWith('Bearer ')) {

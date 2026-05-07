@@ -28,10 +28,7 @@ import {
 } from '@/lib/server/auth';
 import { acquireRefreshLock } from '@/lib/server/auth/refresh-lock';
 import { prisma } from '@/lib/server/prisma';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const ctx = makeRequestContext(req.headers);

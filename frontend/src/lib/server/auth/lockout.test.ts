@@ -98,13 +98,8 @@ describe('lockout — Redis path', () => {
     redisStub.incr.mockResolvedValueOnce(1);
     const r = await recordFailure('redis1@example.com');
     expect(r).toEqual({ count: 1, locked: false });
-    expect(redisStub.incr).toHaveBeenCalledWith(
-      'auth:lockout-count:redis1@example.com',
-    );
-    expect(redisStub.expire).toHaveBeenCalledWith(
-      'auth:lockout-count:redis1@example.com',
-      15 * 60,
-    );
+    expect(redisStub.incr).toHaveBeenCalledWith('auth:lockout-count:redis1@example.com');
+    expect(redisStub.expire).toHaveBeenCalledWith('auth:lockout-count:redis1@example.com', 15 * 60);
     expect(redisStub.set).not.toHaveBeenCalled();
   });
 
@@ -112,19 +107,15 @@ describe('lockout — Redis path', () => {
     redisStub.incr.mockResolvedValueOnce(3);
     const r = await recordFailure('redis-threshold@example.com');
     expect(r).toEqual({ count: 3, locked: true });
-    expect(redisStub.set).toHaveBeenCalledWith(
-      'auth:lockout:redis-threshold@example.com',
-      '1',
-      { ex: 15 * 60 },
-    );
+    expect(redisStub.set).toHaveBeenCalledWith('auth:lockout:redis-threshold@example.com', '1', {
+      ex: 15 * 60,
+    });
   });
 
   it('isLockedOut reads Redis flag', async () => {
     redisStub.get.mockResolvedValueOnce('1');
     expect(await isLockedOut('redis-locked@example.com')).toBe(true);
-    expect(redisStub.get).toHaveBeenCalledWith(
-      'auth:lockout:redis-locked@example.com',
-    );
+    expect(redisStub.get).toHaveBeenCalledWith('auth:lockout:redis-locked@example.com');
   });
 
   it('isLockedOut returns false when Redis flag absent', async () => {
@@ -134,11 +125,7 @@ describe('lockout — Redis path', () => {
 
   it('recordSuccess deletes both keys', async () => {
     await recordSuccess('redis-success@example.com');
-    expect(redisStub.del).toHaveBeenCalledWith(
-      'auth:lockout-count:redis-success@example.com',
-    );
-    expect(redisStub.del).toHaveBeenCalledWith(
-      'auth:lockout:redis-success@example.com',
-    );
+    expect(redisStub.del).toHaveBeenCalledWith('auth:lockout-count:redis-success@example.com');
+    expect(redisStub.del).toHaveBeenCalledWith('auth:lockout:redis-success@example.com');
   });
 });

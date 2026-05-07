@@ -25,7 +25,9 @@ describe('runtime enforcement: every API route exports runtime="nodejs"', () => 
       // Tolerant regex — handles single/double quotes and trailing semicolon.
       const ok = /export\s+const\s+runtime\s*=\s*['"]nodejs['"]/.test(src);
       const hasEdge = /export\s+const\s+runtime\s*=\s*['"]edge['"]/.test(src);
-      expect(hasEdge, `${rel} declares runtime='edge' — Prisma/bcrypt/Buffer break on edge`).toBe(false);
+      expect(hasEdge, `${rel} declares runtime='edge' — Prisma/bcrypt/Buffer break on edge`).toBe(
+        false,
+      );
       expect(ok, `${rel} is missing \`export const runtime = 'nodejs'\``).toBe(true);
     });
   }

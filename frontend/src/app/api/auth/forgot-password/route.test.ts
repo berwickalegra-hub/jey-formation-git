@@ -53,8 +53,7 @@ describe('POST /api/auth/forgot-password', () => {
     expect(codeArg?.data?.userId).toBe('u1');
 
     expect(enqueueOutbox).toHaveBeenCalledTimes(1);
-    const outboxArg = (enqueueOutbox as unknown as ReturnType<typeof vi.fn>).mock
-      .calls[0]?.[1];
+    const outboxArg = (enqueueOutbox as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[1];
     expect(outboxArg?.kind).toBe('email.password_reset');
     expect(outboxArg?.payload?.to).toBe('a@b.com');
   });
@@ -76,9 +75,7 @@ describe('POST /api/auth/forgot-password', () => {
     prismaMock.user.findUnique.mockResolvedValue(null);
 
     const calls = await Promise.all(
-      Array.from({ length: 4 }, () =>
-        POST(makeReq({ email: 'rl-forgot@example.com' })),
-      ),
+      Array.from({ length: 4 }, () => POST(makeReq({ email: 'rl-forgot@example.com' }))),
     );
     const limited = calls.find((r) => r.status === 429)!;
     expect(limited).toBeTruthy();

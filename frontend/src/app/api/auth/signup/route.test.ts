@@ -57,9 +57,7 @@ describe('POST /api/auth/signup', () => {
     prismaMock.user.create.mockResolvedValue({ id: 'u-new' } as never);
     prismaMock.verificationCode.create.mockResolvedValue({} as never);
 
-    const res = await POST(
-      makeReq({ email: 'new@example.com', password: 'a-strong-passphrase' }),
-    );
+    const res = await POST(makeReq({ email: 'new@example.com', password: 'a-strong-passphrase' }));
     expect(res.status).toBe(201);
     const body = await res.json();
     expect(body).toEqual({ ok: true });
@@ -70,8 +68,7 @@ describe('POST /api/auth/signup', () => {
     expect(codeArg?.data?.type).toBe('EMAIL_VERIFY');
 
     expect(enqueueOutbox).toHaveBeenCalledTimes(1);
-    const outboxArg = (enqueueOutbox as unknown as ReturnType<typeof vi.fn>).mock
-      .calls[0]?.[1];
+    const outboxArg = (enqueueOutbox as unknown as ReturnType<typeof vi.fn>).mock.calls[0]?.[1];
     expect(outboxArg?.kind).toBe('email.verification_code');
     expect(outboxArg?.payload?.to).toBe('new@example.com');
   });
@@ -93,9 +90,7 @@ describe('POST /api/auth/signup', () => {
   });
 
   it('rejects banned passwords with PASSWORD_BANNED before user lookup', async () => {
-    const res = await POST(
-      makeReq({ email: 'foo@example.com', password: 'password' }),
-    );
+    const res = await POST(makeReq({ email: 'foo@example.com', password: 'password' }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('PASSWORD_BANNED');
@@ -103,9 +98,7 @@ describe('POST /api/auth/signup', () => {
   });
 
   it('rejects too-short passwords with PASSWORD_TOO_SHORT', async () => {
-    const res = await POST(
-      makeReq({ email: 'foo@example.com', password: 'short' }),
-    );
+    const res = await POST(makeReq({ email: 'foo@example.com', password: 'short' }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('PASSWORD_TOO_SHORT');
@@ -114,9 +107,7 @@ describe('POST /api/auth/signup', () => {
   });
 
   it('returns VALIDATION_FAILED for malformed email', async () => {
-    const res = await POST(
-      makeReq({ email: 'not-an-email', password: 'a-strong-passphrase' }),
-    );
+    const res = await POST(makeReq({ email: 'not-an-email', password: 'a-strong-passphrase' }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('VALIDATION_FAILED');

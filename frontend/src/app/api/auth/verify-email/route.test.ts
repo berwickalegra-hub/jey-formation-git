@@ -1,9 +1,6 @@
 // AUTH-03 — POST /api/auth/verify-email tests.
 import { prismaMock } from '@/test-utils/prisma-mock';
-import {
-  mockNextCookies,
-  __cookieStore,
-} from '@/test-utils/mock-cookies';
+import { mockNextCookies, __cookieStore } from '@/test-utils/mock-cookies';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -125,9 +122,7 @@ describe('POST /api/auth/verify-email', () => {
   });
 
   it('returns VALIDATION_FAILED on malformed code', async () => {
-    const res = await POST(
-      makeReq({ email: 'a@b.com', code: 'lowercase' }),
-    );
+    const res = await POST(makeReq({ email: 'a@b.com', code: 'lowercase' }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe('VALIDATION_FAILED');
@@ -138,9 +133,7 @@ describe('POST /api/auth/verify-email', () => {
     prismaMock.user.findUnique.mockResolvedValue(null);
 
     const calls = await Promise.all(
-      Array.from({ length: 6 }, () =>
-        POST(makeReq({ email: 'rl@example.com', code: VALID_CODE })),
-      ),
+      Array.from({ length: 6 }, () => POST(makeReq({ email: 'rl@example.com', code: VALID_CODE }))),
     );
     const limited = calls.find((r) => r.status === 429)!;
     expect(limited).toBeTruthy();

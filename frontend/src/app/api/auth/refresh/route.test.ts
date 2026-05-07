@@ -11,9 +11,7 @@ vi.mock('@/lib/server/auth/refresh-lock', () => ({
 }));
 
 vi.mock('@/lib/server/auth', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/server/auth')>(
-    '@/lib/server/auth',
-  );
+  const actual = await vi.importActual<typeof import('@/lib/server/auth')>('@/lib/server/auth');
   return {
     ...actual,
     verifyRefreshToken: vi.fn(),

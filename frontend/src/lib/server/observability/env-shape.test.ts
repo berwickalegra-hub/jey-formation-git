@@ -20,9 +20,7 @@ describe('.env.example shape (OPS-01, OPS-04)', () => {
   it(`declares DATABASE_URL using the Neon -pooler hostname (file: ${ENV_EXAMPLE})`, () => {
     // Hostname shape: <project>-pooler.<region>.aws.neon.tech (e.g. ep-xxx-pooler.us-east-2.aws.neon.tech).
     // Matches plan key_links pattern: `-pooler\.[a-z0-9-]+\.aws\.neon\.tech`.
-    expect(src).toMatch(
-      /DATABASE_URL="postgresql:\/\/[^"]*-pooler\.[a-z0-9-]+\.aws\.neon\.tech/,
-    );
+    expect(src).toMatch(/DATABASE_URL="postgresql:\/\/[^"]*-pooler\.[a-z0-9-]+\.aws\.neon\.tech/);
   });
 
   it('DATABASE_URL carries pgbouncer=true & connection_limit=1 & pool_timeout=15 & sslmode=require', () => {

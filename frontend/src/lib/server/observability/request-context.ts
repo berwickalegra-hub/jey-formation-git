@@ -21,8 +21,7 @@ const als = new AsyncLocalStorage<RequestContext>();
  */
 export function makeRequestContext(headers: Headers): RequestContext {
   const inbound = headers.get('x-request-id');
-  const requestId =
-    inbound && /^[0-9a-f-]{8,64}$/i.test(inbound) ? inbound : randomUUID();
+  const requestId = inbound && /^[0-9a-f-]{8,64}$/i.test(inbound) ? inbound : randomUUID();
   return { requestId, startedAt: Date.now() };
 }
 

@@ -21,9 +21,7 @@ vi.mock('@/lib/server/auth/dummy-bcrypt', () => ({
 
 // Mock verifyPassword from auth.ts to avoid running real bcrypt in tests.
 vi.mock('@/lib/server/auth', async () => {
-  const actual = await vi.importActual<typeof import('@/lib/server/auth')>(
-    '@/lib/server/auth',
-  );
+  const actual = await vi.importActual<typeof import('@/lib/server/auth')>('@/lib/server/auth');
   return {
     ...actual,
     verifyPassword: vi.fn(),

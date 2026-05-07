@@ -19,7 +19,17 @@ Cloning this repo and filling in `.env` produces a working Next.js app on Vercel
 - ✓ **LIB-01**: `lib/server/` ports the load-bearing modules — `auth`, `crypto`, `redis` singleton (returns `null` when env missing), `rate-limit-store` with `MemoryRateLimitStore` dev fallback, `webhook/handler` (raw-body HMAC preserved via `req.arrayBuffer()`), `sentry` shim, `oauth/google`, `outbox/dispatcher`, `withdrawals/lock`, `payments` interface + Bictorys, `notifications/createNotification`, `admin/audit` — existing
 - ✓ **MW-01**: HOF middleware — `requireAuth`, `requireAdmin`, `requireSuperadmin`, `requireOrgRole`, `optionalAuth`, `verifyCsrf`, `createEmailLimiter` — existing
 - ✓ **OBS-01**: Sentry boots via `frontend/instrumentation.ts` (env-gated no-op without `SENTRY_DSN`) — existing
-- ✓ **OPS-01**: `/api/health` (liveness) and `/api/readyz` (DB + Redis probes, 1.5s timeout, 503 on failure) routes wired — existing
+- ✓ **HEALTH-01**: `/api/health` (liveness) and `/api/readyz` (DB + Redis probes, 1.5s timeout, 503 on failure) routes wired — existing
+
+#### Validated in Phase 0 (Foundation, 2026-05-07)
+
+- ✓ **OPS-01**: `DATABASE_URL` Neon `-pooler` host + `DIRECT_URL` for migrations documented in `.env.example`; `directUrl = env("DIRECT_URL")` declared in `prisma/schema.prisma` — Phase 0
+- ✓ **OPS-02**: Every `app/api/**/route.ts` exports `runtime = 'nodejs'`; CI grep guard test (Vitest + fast-glob) prevents regression — Phase 0
+- ✓ **OPS-03**: `instrumentation.ts` re-exports `onRequestError` from `@sentry/nextjs` — unhandled route errors auto-captured — Phase 0
+- ✓ **OPS-04**: `CRON_SECRET` documented in `.env.example` with `openssl rand -base64 32` hint — Phase 0
+- ✓ **OPS-05**: `next.config.ts` confirmed clean of deprecated `experimental.instrumentationHook` (test-locked) — Phase 0
+- ✓ **OBS-04**: `lib/server/observability/request-context.ts` (AsyncLocalStorage + UUID generation + inbound `X-Request-Id` validation) and `log.ts` wrapper (injects `requestId` into log context without modifying `lib/server/logger.ts`) — Phase 0; per-route `X-Request-Id` response header lands in Phase 1+
+- ✓ **OBS-05**: `@vercel/otel` `registerOTel({ serviceName: 'amadou-monolith' })` in `instrumentation.ts`, coexists with Sentry — Phase 0
 
 ### Active
 
@@ -83,6 +93,8 @@ Cloning this repo and filling in `.env` produces a working Next.js app on Vercel
 
 **Multi-target reuse.** The starter must serve four project profiles: SaaS/B2B (auth + payments + multi-tenancy), marketplaces/fintech (full payments + withdrawals + ledger), content/consumer (auth + uploads + notifications), and internal tools/MVPs (auth + admin + speed-to-prototype). Keeping the surface generic — no domain-specific bias — is a constant.
 
+**Phase 0 complete (2026-05-07).** Foundation infrastructure landed: Neon `-pooler` URL convention + `DIRECT_URL` for migrations, `runtime='nodejs'` enforcement on every route handler (CI grep guard via Vitest + fast-glob), Sentry `onRequestError` re-export wired in `instrumentation.ts`, `@vercel/otel` registered for distributed traces, `CRON_SECRET` documented, request-context module (`AsyncLocalStorage`) + logger wrapper available for Phase 1+ adoption. 31/31 tests green, no `middleware.ts`, `lib/server/logger.ts` untouched. Three human-verification items (`pnpm dev` boot smoke, `next build` clean, end-to-end Sentry capture) tracked in `00-HUMAN-UAT.md` for follow-up.
+
 ## Constraints
 
 - **Tech stack**: Next.js 16 App Router, TS 5.9 strict, Prisma 5.22, Postgres (Neon), Upstash Redis, R2, Resend, Sentry, Bictorys — no swaps in v1
@@ -128,4 +140,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-07 after initialization*
+*Last updated: 2026-05-07 after Phase 0 (Foundation) completion*

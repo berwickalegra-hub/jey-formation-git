@@ -1,9 +1,9 @@
 ---
 status: partial
 phase: 01-auth-routes
-source: [01-VERIFICATION.md]
+source: [01-VERIFICATION.md, 01-REVIEW-FIX.md]
 started: 2026-05-07T23:05:00Z
-updated: 2026-05-07T23:05:00Z
+updated: 2026-05-07T23:25:00Z
 ---
 
 ## Current Test
@@ -13,12 +13,12 @@ updated: 2026-05-07T23:05:00Z
 ## Tests
 
 ### 1. CR-01 — forgot-password timing parity (D-23)
-expected: No-user branch and user-exists branch take indistinguishable wall-clock time over 1000+ runs (within bcrypt jitter, ±~50ms). REVIEW.md flags critical: no-user branch ~150-300ms (dummy bcrypt) vs user-exists branch ~20-80ms ($transaction). The two paths are NOT timing-symmetric.
-result: [pending]
+expected: No-user branch and user-exists branch take indistinguishable wall-clock time over 1000+ runs (within bcrypt jitter, ±~50ms).
+result: resolved (code fix 9d82636 — dummy bcrypt now runs on BOTH branches + AUTH_FORGOT_TARGET_LATENCY_MS=350ms wall-clock floor)
 
 ### 2. WR-05 — verify-email + reset-password code single-use under concurrency (TOCTOU)
-expected: Two simultaneous requests for the same valid VerificationCode result in exactly one cookie issuance / password reset; the second returns VERIFICATION_CODE_INVALID. Current code uses findFirst({usedAt: null}) → update inside $transaction; the race window allows double redemption.
-result: [pending]
+expected: Two simultaneous requests for the same valid VerificationCode result in exactly one cookie issuance / password reset; the second returns VERIFICATION_CODE_INVALID.
+result: resolved (code fix 3e45982 — switched to updateMany(where: id + usedAt: null) + count===0 race-loss path; explicit race-path tests added)
 
 ### 3. End-to-end auth happy path against a running Next dev server
 expected: signup → outbox event drained → verify-email → cookies set → me returns user → logout clears cookies → login again → refresh rotates → change-password succeeds and current browser stays logged in. Vitest mocks the full stack; no integration test runs the live HTTP path.
@@ -37,8 +37,9 @@ result: [pending]
 total: 5
 passed: 0
 issues: 0
-pending: 5
+pending: 3
 skipped: 0
 blocked: 0
+resolved_by_code: 2
 
 ## Gaps

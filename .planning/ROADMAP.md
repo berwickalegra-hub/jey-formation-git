@@ -33,7 +33,7 @@ Port `amadou-template` (Express 5 + Next.js 16 monorepo) into a single Next.js 1
   5. `instrumentation.ts` does NOT export `experimental.instrumentationHook`; `@vercel/otel` is registered; each inbound request receives an `X-Request-Id` response header
 **Plans**: 5 plans
   - [x] 00-01-PLAN.md — Wave 0: deps + vitest config + observability/ scaffold (@vercel/otel, fast-glob, vitest.config.ts)
-  - [ ] 00-02-PLAN.md — Wave 1: env + schema (DATABASE_URL pooler, DIRECT_URL, CRON_SECRET, schema.prisma directUrl, prisma generate)
+  - [x] 00-02-PLAN.md — Wave 1: env + schema (DATABASE_URL pooler, DIRECT_URL, CRON_SECRET, schema.prisma directUrl, prisma generate)
   - [ ] 00-03-PLAN.md — Wave 1: instrumentation.ts (onRequestError + registerOTel) + next.config.ts clean check
   - [ ] 00-04-PLAN.md — Wave 1: runtime='nodejs' guard test + audit pay-redirect/route.ts
   - [ ] 00-05-PLAN.md — Wave 1: request-context (ALS) module + logger wrapper

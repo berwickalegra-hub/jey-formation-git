@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Completed 00-01-PLAN.md
-last_updated: "2026-05-07T19:22:45.974Z"
+stopped_at: Completed 00-02-PLAN.md
+last_updated: "2026-05-07T19:29:06.988Z"
 last_activity: 2026-05-07
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
-  percent: 20
+  completed_plans: 2
+  percent: 40
 ---
 
 # Project State
@@ -26,7 +26,7 @@ See: .planning/PROJECT.md (updated 2026-05-07)
 ## Current Position
 
 Phase: 0 (Foundation) — EXECUTING
-Plan: 2 of 5
+Plan: 3 of 5
 Status: Ready to execute
 Last activity: 2026-05-07
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 00-foundation P01 | 3 | 3 tasks | 4 files |
+| Phase 00-foundation P02 | 4min | 4 tasks tasks | 4 files files |
 
 ## Accumulated Context
 
@@ -68,6 +69,8 @@ Recent decisions affecting current work:
 - Roadmap: Phase 7 is a gate-only phase (no new requirements) — lint/typecheck/test must all pass before v1 tag
 - [Phase 00-foundation]: Plan 00-01: Added passWithNoTests:true to vitest.config.ts so Wave 0 ships a runnable Vitest config before Wave 1 plans write the first test files (zero-tests exit 0)
 - [Phase 00-foundation]: Plan 00-01: @vercel/otel pulled its OTel SDK peer deps transitively; explicit @opentelemetry/* installs deferred (only add if Plan 03 dev-boot fails per RESEARCH.md Pitfall 5)
+- [Phase 00-foundation]: Plan 00-02: Fixed broken Neon -pooler hostname regex in plan-supplied env-shape.test.ts (Rule 1 deviation) — single region segment, not two; aligned with plan key_links pattern
+- [Phase 00-foundation]: Plan 00-02: Used import.meta.url + fileURLToPath for Vitest test path resolution so tests work under both ESM and CJS module systems
 
 ### Pending Todos
 
@@ -82,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-07T19:22:45.972Z
-Stopped at: Completed 00-01-PLAN.md
+Last session: 2026-05-07T19:29:06.982Z
+Stopped at: Completed 00-02-PLAN.md
 Resume file: None

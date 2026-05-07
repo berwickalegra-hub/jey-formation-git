@@ -144,6 +144,25 @@ async function dispatchEvent(deps: OutboxDispatcherDeps, event: OutboxEvent): Pr
       });
       return;
     }
+    case 'email.verification_code': {
+      // Phase 1 — emitted by signup + resend-verification routes. Phase 5's
+      // email-queue cron will render via verificationEmail() and call enqueue.
+      if (!deps.emailQueue) throw new Error('email queue not configured');
+      const { verificationEmail } = await import('../auth/email-templates');
+      const { to, code } = event.payload;
+      const tpl = verificationEmail({ code, email: to });
+      await deps.emailQueue.enqueue({ to, subject: tpl.subject, html: tpl.html });
+      return;
+    }
+    case 'email.password_reset': {
+      // Phase 1 — emitted by forgot-password route.
+      if (!deps.emailQueue) throw new Error('email queue not configured');
+      const { resetPasswordEmail } = await import('../auth/email-templates');
+      const { to, code } = event.payload;
+      const tpl = resetPasswordEmail({ code, email: to });
+      await deps.emailQueue.enqueue({ to, subject: tpl.subject, html: tpl.html });
+      return;
+    }
     default: {
       // Exhaustive check — TS will yell if we add a new variant and forget it.
       const _exhaustive: never = event;

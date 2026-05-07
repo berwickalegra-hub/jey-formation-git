@@ -1,0 +1,126 @@
+// Source: RESEARCH.md Pattern 6 — D-12 banned-password check.
+// ~100 highest-frequency entries from NCSC Top-100k + SecLists/rockyou.
+// Lower-case-normalized on check; no substring matching (avoids false positives
+// like "ipasswordi" matching).
+//
+// New file under lib/server/auth/ — sibling directory to lib/server/auth.ts
+// (which is do-not-modify per CLAUDE.md). Follow this pattern for any future
+// auth helper that would otherwise pollute auth.ts.
+import 'server-only';
+
+const BANNED: ReadonlySet<string> = new Set([
+  // Top common passwords
+  'password',
+  'password1',
+  'password!',
+  'password123',
+  'passw0rd',
+  'passwd',
+  '123456',
+  '1234567',
+  '12345678',
+  '123456789',
+  '1234567890',
+  '12345',
+  'qwerty',
+  'qwerty1',
+  'qwerty12',
+  'qwerty123',
+  'qwertyuiop',
+  'qweasd',
+  '1q2w3e4r',
+  '1qaz2wsx',
+  'q1w2e3r4',
+  'asdfgh',
+  'zaq12wsx',
+  '123qwe',
+  'abc123',
+  'abc12345',
+  'aaaa1234',
+  'pass1234',
+  // Login phrases
+  'letmein',
+  'letmein1',
+  'welcome',
+  'welcome1',
+  'welcome123',
+  'welcome2024',
+  'welcome2025',
+  'welcome2026',
+  'admin',
+  'admin1',
+  'admin123',
+  'admin1234',
+  'root',
+  'toor',
+  'changeme',
+  'secret',
+  // Affection
+  'iloveyou',
+  'iloveyou1',
+  'iloveyou2',
+  'iloveu',
+  'loveme',
+  // Pop culture / sports
+  'monkey',
+  'dragon',
+  'pokemon',
+  'starwars',
+  'superman',
+  'batman',
+  'liverpool',
+  'arsenal',
+  'chelsea',
+  'football',
+  'baseball',
+  'jordan23',
+  'tigger',
+  'cheese',
+  // Names
+  'michael',
+  'michael1',
+  'andrew',
+  'daniel',
+  'taylor',
+  'jessica',
+  'nicole',
+  'amanda',
+  'ashley',
+  'charlie',
+  'joshua',
+  'harley',
+  'pepper',
+  'ginger',
+  // Generic
+  'master',
+  'shadow',
+  'trustno1',
+  'sunshine',
+  'princess',
+  'flower',
+  'freedom',
+  'whatever',
+  'qazwsx',
+  'summer',
+  'hunter',
+  'internet',
+  'service',
+  'canada',
+  'hello',
+  'fuckyou',
+  'myspace1',
+  // Repeats
+  '111111',
+  '222222',
+  '666666',
+  '777777',
+  '7777777',
+  '000000',
+  '121212',
+  '654321',
+]);
+
+/** True if `password` appears in the banned list (case-insensitive). */
+export function isBanned(password: string): boolean {
+  return BANNED.has(password.toLowerCase());
+}

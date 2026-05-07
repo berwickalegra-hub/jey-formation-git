@@ -59,8 +59,17 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
     const { email, code, newPassword } = parsed.data;
 
-    // Password policy BEFORE looking up code so banned/short passwords don't
-    // burn a code attempt.
+    // WR-01 — rate-limit BEFORE password policy gates. Otherwise an
+    // unauthenticated attacker can probe HIBP / banned-list state for arbitrary
+    // passwords without ever burning the per-email rate budget (rotate emails,
+    // vary newPassword). The limiter is a single Redis incr — cheap to run
+    // first, and it forces the attacker to spend budget before learning
+    // anything about HIBP/banned state.
+    const rateFail = await limiter.check(req, email);
+    if (rateFail) return rateFail;
+
+    // Password policy gates AFTER limiter — short/banned/HIBP passwords still
+    // short-circuit before the DB lookup so they don't burn a code attempt.
     if (isBanned(newPassword)) {
       const res = NextResponse.json(
         { error: 'PASSWORD_BANNED', message: 'This password is too common.' },
@@ -91,9 +100,6 @@ export async function POST(req: NextRequest): Promise<Response> {
       res.headers.set('x-request-id', ctx.requestId);
       return res;
     }
-
-    const rateFail = await limiter.check(req, email);
-    if (rateFail) return rateFail;
 
     const user = await prisma.user.findUnique({
       where: { email },

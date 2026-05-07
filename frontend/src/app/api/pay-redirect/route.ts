@@ -16,6 +16,7 @@ import { NextRequest, NextResponse } from 'next/server';
  *
  * Add new payment hosts to ALLOWED_DOMAINS as you onboard providers.
  */
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const ALLOWED_DOMAINS: readonly string[] = [

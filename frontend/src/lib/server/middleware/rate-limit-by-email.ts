@@ -13,6 +13,14 @@
  * Backed by Upstash Redis when available, in-memory otherwise (with a
  * warning on the boot path — matches the parent IP limiter behaviour).
  *
+ * WR-07 — On Vercel each serverless instance has its own memory, so the
+ * in-memory fallback is effectively bypassed by an attacker spreading load
+ * across instances. Two safeguards:
+ *   - Module-load `log.warn` makes the fallback observable in logs.
+ *   - `AUTH_RATE_LIMIT_FAIL_CLOSED=1` makes `check()` return 503 when redis
+ *     is absent. Set this in production to prevent accidental deploy of a
+ *     binary without UPSTASH configured.
+ *
  * Usage from a Next.js route handler:
  *   const limiter = createEmailLimiter({ redis }, { bucket: 'auth:login', windowMs, max, code, message });
  *   const fail = await limiter.check(req, body.email ?? null);
@@ -26,6 +34,7 @@ import {
   RedisRateLimitStore,
   type RateLimitStore,
 } from '../rate-limit-store';
+import { log } from '../observability/log';
 
 export interface CreateEmailLimiterDeps {
   redis?: Redis;
@@ -68,6 +77,19 @@ export function createEmailLimiter(
   deps: CreateEmailLimiterDeps,
   config: EmailLimiterConfig,
 ): EmailLimiter {
+  // WR-07 — fail-closed in prod when redis is absent (env-controlled).
+  // When set, `check()` returns 503 instead of silently using the in-memory
+  // fallback, which would let an attacker spread load across instances.
+  const failClosed = process.env.AUTH_RATE_LIMIT_FAIL_CLOSED === '1';
+
+  if (!deps.redis) {
+    // WR-07 — surface the degraded mode in logs so it's not silent.
+    log.warn(
+      `email-limiter using in-memory fallback (Redis absent) bucket=${config.bucket} ` +
+        `failClosed=${failClosed ? '1' : '0'}`,
+    );
+  }
+
   const store: RateLimitStore = deps.redis
     ? new RedisRateLimitStore({
         redis: deps.redis,
@@ -78,6 +100,20 @@ export function createEmailLimiter(
 
   return {
     async check(req, email) {
+      // WR-07 — fail-closed: when configured AND redis is absent, refuse
+      // requests rather than rely on the per-instance memory fallback.
+      if (failClosed && !deps.redis) {
+        return NextResponse.json(
+          {
+            error: 'RATE_LIMIT_UNAVAILABLE',
+            message: 'Rate limiter unavailable. Try again shortly.',
+          },
+          {
+            status: 503,
+            headers: { 'Retry-After': '30' },
+          },
+        );
+      }
       const key = bucketKey(email, req);
       const { totalHits, resetTime } = await store.increment(key);
       if (totalHits > config.max) {

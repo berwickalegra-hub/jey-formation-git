@@ -5,7 +5,9 @@
 //
 // Per D-27: Vitest setup-files for JWT_SECRET / ENCRYPTION_KEY fixtures lands
 // in Phase 1 (auth route tests cannot run without these).
-process.env.JWT_SECRET ||= 'test-secret-must-be-at-least-32-chars-long-for-zod-validation';
+// Note: avoid leading "test"/"secret"/"dev"/etc. — auth.ts:21 rejects those
+// as placeholder values. Use a fixed-but-realistic-looking value.
+process.env.JWT_SECRET ||= 'unit-fixture-jwt-secret-do-not-use-in-prod-12345678901234567890';
 process.env.ENCRYPTION_KEY ||= 'aGVsbG8td29ybGQtdGhpcy1pcy0zMi1ieXRlcy1sb25n';
 process.env.COOKIE_PREFIX ||= 'app';
 process.env.NODE_ENV ||= 'test';

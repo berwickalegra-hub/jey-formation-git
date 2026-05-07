@@ -27,6 +27,9 @@ function memKey(email: string): string {
 interface MemEntry {
   count: number;
   resetAt: number;
+  // WR-04 — independent lockout TTL so the lockout horizon is not coupled to
+  // the counter's resetAt (mirrors the Redis path which uses two keys).
+  lockedUntil?: number;
 }
 
 const memCounts = new Map<string, MemEntry>();
@@ -42,11 +45,15 @@ export async function isLockedOut(email: string): Promise<boolean> {
   log.warn('lockout using in-memory fallback (Redis absent)');
   const e = memCounts.get(k);
   if (!e) return false;
-  if (e.resetAt <= Date.now()) {
+  // WR-04 — check the explicit lockedUntil flag first; the counter's resetAt
+  // may have expired even while the lockout window is still active.
+  const now = Date.now();
+  if (e.lockedUntil && e.lockedUntil > now) return true;
+  if (e.resetAt <= now) {
     memCounts.delete(k);
     return false;
   }
-  return e.count >= threshold();
+  return false;
 }
 
 /**
@@ -81,11 +88,19 @@ export async function recordFailure(email: string): Promise<{ count: number; loc
   const now = Date.now();
   const e = memCounts.get(k);
   if (!e || e.resetAt <= now) {
-    memCounts.set(k, { count: 1, resetAt: now + ttlMs });
-    return { count: 1, locked: 1 >= limit };
+    const fresh: MemEntry = { count: 1, resetAt: now + ttlMs };
+    const locked = 1 >= limit;
+    if (locked) fresh.lockedUntil = now + ttlMs;
+    memCounts.set(k, fresh);
+    return { count: 1, locked };
   }
   e.count += 1;
-  return { count: e.count, locked: e.count >= limit };
+  const locked = e.count >= limit;
+  // WR-04 — set the independent lockedUntil on the threshold-breach attempt
+  // (and refresh on subsequent failures so the flag follows the latest
+  // attempt's TTL, matching the Redis SET-with-EX behaviour).
+  if (locked) e.lockedUntil = now + ttlMs;
+  return { count: e.count, locked };
 }
 
 /** Clear failure count + lockout flag after successful login. */

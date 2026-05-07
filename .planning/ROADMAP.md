@@ -51,7 +51,7 @@ Port `amadou-template` (Express 5 + Next.js 16 monorepo) into a single Next.js 1
 **Plans**: 5 plans
   - [x] 01-01-PLAN.md — Wave 0: lib helpers (banned-passwords, hibp, lockout, refresh-lock, dummy-bcrypt, email-templates) + vitest setup + outbox types extension
   - [x] 01-02-PLAN.md — Wave 1: account creation flow (signup, verify-email, forgot-password, reset-password)
-  - [ ] 01-03-PLAN.md — Wave 1: session lifecycle (login, refresh, logout, me)
+  - [x] 01-03-PLAN.md — Wave 1: session lifecycle (login, refresh, logout, me)
   - [x] 01-04-PLAN.md — Wave 1: change-password (only authenticated mutation)
   - [x] 01-05-PLAN.md — Wave 2: .env.example documentation + final phase gate
 

@@ -49,6 +49,9 @@ describe('POST /api/auth/verify-email', () => {
       code: VALID_CODE,
       expiresAt: new Date(Date.now() + 60_000),
     } as never);
+    // WR-05 — updateMany now consumes the code; it must report count >= 1
+    // for the happy path.
+    prismaMock.verificationCode.updateMany.mockResolvedValue({ count: 1 } as never);
 
     const res = await POST(makeReq({ email: 'a@b.com', code: VALID_CODE }));
     expect(res.status).toBe(200);
@@ -56,8 +59,9 @@ describe('POST /api/auth/verify-email', () => {
     expect(body.ok).toBe(true);
     expect(body.user).toEqual({ sub: 'u1', email: 'a@b.com' });
 
-    expect(prismaMock.verificationCode.update).toHaveBeenCalledTimes(1);
-    const updateArg = prismaMock.verificationCode.update.mock.calls[0]?.[0];
+    expect(prismaMock.verificationCode.updateMany).toHaveBeenCalledTimes(1);
+    const updateArg = prismaMock.verificationCode.updateMany.mock.calls[0]?.[0];
+    expect(updateArg?.where?.usedAt).toBeNull();
     expect(updateArg?.data?.usedAt).toBeInstanceOf(Date);
 
     expect(prismaMock.user.update).toHaveBeenCalledTimes(1);
@@ -69,6 +73,28 @@ describe('POST /api/auth/verify-email', () => {
     expect(__cookieStore.has('app-refresh')).toBe(true);
     expect(__cookieStore.has('app-csrf')).toBe(true);
     expect(__cookieStore.get('app-refresh')?.options?.path).toBe('/api/auth');
+  });
+
+  it('WR-05 — race: when updateMany returns count=0, surfaces VERIFICATION_CODE_INVALID and skips user.update', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'u1',
+      email: 'a@b.com',
+      tokenVersion: 0,
+    } as never);
+    prismaMock.verificationCode.findFirst.mockResolvedValue({
+      id: 'vc1',
+      code: VALID_CODE,
+      expiresAt: new Date(Date.now() + 60_000),
+    } as never);
+    // Simulate the race: another concurrent request consumed the code first.
+    prismaMock.verificationCode.updateMany.mockResolvedValue({ count: 0 } as never);
+
+    const res = await POST(makeReq({ email: 'a@b.com', code: VALID_CODE }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe('VERIFICATION_CODE_INVALID');
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+    expect(__cookieStore.size()).toBe(0);
   });
 
   it('returns VERIFICATION_CODE_INVALID when no matching code exists', async () => {

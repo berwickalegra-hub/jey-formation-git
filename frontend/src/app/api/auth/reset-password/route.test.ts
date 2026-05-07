@@ -42,6 +42,8 @@ describe('POST /api/auth/reset-password', () => {
       id: 'vc1',
       expiresAt: new Date(Date.now() + 60_000),
     } as never);
+    // WR-05 — updateMany now consumes the code; happy path returns count=1.
+    prismaMock.verificationCode.updateMany.mockResolvedValue({ count: 1 } as never);
 
     const res = await POST(
       makeReq({ email: 'happy@example.com', code: VALID_CODE, newPassword: STRONG_PW }),
@@ -55,9 +57,28 @@ describe('POST /api/auth/reset-password', () => {
     expect(userArg?.data?.passwordHash).toBeTruthy();
     expect(userArg?.data?.tokenVersion).toEqual({ increment: 1 });
 
-    expect(prismaMock.verificationCode.update).toHaveBeenCalledTimes(1);
-    const codeArg = prismaMock.verificationCode.update.mock.calls[0]?.[0];
+    expect(prismaMock.verificationCode.updateMany).toHaveBeenCalledTimes(1);
+    const codeArg = prismaMock.verificationCode.updateMany.mock.calls[0]?.[0];
+    expect(codeArg?.where?.usedAt).toBeNull();
     expect(codeArg?.data?.usedAt).toBeInstanceOf(Date);
+  });
+
+  it('WR-05 — race: when updateMany returns count=0, surfaces VERIFICATION_CODE_INVALID and skips user.update', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({ id: 'u1' } as never);
+    prismaMock.verificationCode.findFirst.mockResolvedValue({
+      id: 'vc1',
+      expiresAt: new Date(Date.now() + 60_000),
+    } as never);
+    // Simulate concurrent consumption — updateMany finds 0 rows.
+    prismaMock.verificationCode.updateMany.mockResolvedValue({ count: 0 } as never);
+
+    const res = await POST(
+      makeReq({ email: 'race@example.com', code: VALID_CODE, newPassword: STRONG_PW }),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe('VERIFICATION_CODE_INVALID');
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
   });
 
   it('returns VERIFICATION_CODE_INVALID when no matching code exists', async () => {
@@ -97,7 +118,7 @@ describe('POST /api/auth/reset-password', () => {
     const body = await res.json();
     expect(body.error).toBe('PASSWORD_BANNED');
     expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
-    expect(prismaMock.verificationCode.update).not.toHaveBeenCalled();
+    expect(prismaMock.verificationCode.updateMany).not.toHaveBeenCalled();
   });
 
   it('rejects too-short new passwords with PASSWORD_TOO_SHORT — code NOT consumed', async () => {
@@ -108,7 +129,7 @@ describe('POST /api/auth/reset-password', () => {
     const body = await res.json();
     expect(body.error).toBe('PASSWORD_TOO_SHORT');
     expect(prismaMock.user.findUnique).not.toHaveBeenCalled();
-    expect(prismaMock.verificationCode.update).not.toHaveBeenCalled();
+    expect(prismaMock.verificationCode.updateMany).not.toHaveBeenCalled();
   });
 
   it('returns 429 TOO_MANY_RESET_ATTEMPTS after 5/15m', async () => {

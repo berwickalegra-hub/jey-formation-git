@@ -125,16 +125,39 @@ export async function POST(req: NextRequest): Promise<Response> {
       return res;
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.verificationCode.update({
-        where: { id: codeRow.id },
-        data: { usedAt: new Date() },
+    // WR-05 — close the TOCTOU window: the gap between the findFirst above
+    // (where: { usedAt: null }) and the update below is non-atomic. Two
+    // concurrent requests with the same code can both pass the lookup, then
+    // both consume it. Use updateMany with the usedAt:null guard inline so
+    // the second tx finds 0 rows and the outer scope can surface INVALID.
+    try {
+      await prisma.$transaction(async (tx) => {
+        const consumed = await tx.verificationCode.updateMany({
+          where: { id: codeRow.id, usedAt: null },
+          data: { usedAt: new Date() },
+        });
+        if (consumed.count === 0) {
+          throw new Error('VERIFICATION_CODE_RACE');
+        }
+        await tx.user.update({
+          where: { id: user.id },
+          data: { emailVerifiedAt: new Date() },
+        });
       });
-      await tx.user.update({
-        where: { id: user.id },
-        data: { emailVerifiedAt: new Date() },
-      });
-    });
+    } catch (err) {
+      if (err instanceof Error && err.message === 'VERIFICATION_CODE_RACE') {
+        const res = NextResponse.json(
+          {
+            error: 'VERIFICATION_CODE_INVALID',
+            message: 'Verification code is invalid.',
+          },
+          { status: 400 },
+        );
+        res.headers.set('x-request-id', ctx.requestId);
+        return res;
+      }
+      throw err;
+    }
 
     const access = await createAccessToken({
       sub: user.id,

@@ -3,6 +3,9 @@ import { prismaMock } from '@/test-utils/prisma-mock';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest } from 'next/server';
 
+// CR-01 — keep timing-floor short during tests so each call doesn't pad ~350ms.
+process.env.AUTH_FORGOT_TARGET_LATENCY_MS = '0';
+
 vi.mock('@/lib/server/outbox', () => ({
   enqueueOutbox: vi.fn().mockResolvedValue({ id: 'outbox-1' }),
 }));
@@ -38,7 +41,7 @@ beforeEach(() => {
 });
 
 describe('POST /api/auth/forgot-password', () => {
-  it('issues a PASSWORD_RESET code + outbox event when the user exists', async () => {
+  it('issues a PASSWORD_RESET code + outbox event when the user exists (and runs dummy bcrypt for timing parity)', async () => {
     prismaMock.user.findUnique.mockResolvedValue({ id: 'u1' } as never);
     prismaMock.verificationCode.create.mockResolvedValue({} as never);
 
@@ -46,6 +49,9 @@ describe('POST /api/auth/forgot-password', () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body).toEqual({ ok: true });
+
+    // CR-01 — dummy bcrypt is run on BOTH branches for timing parity.
+    expect(dummyBcryptCompare).toHaveBeenCalledTimes(1);
 
     expect(prismaMock.verificationCode.create).toHaveBeenCalledTimes(1);
     const codeArg = prismaMock.verificationCode.create.mock.calls[0]?.[0];

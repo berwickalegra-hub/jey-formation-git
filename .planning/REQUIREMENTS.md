@@ -158,17 +158,80 @@ Explicitly excluded. Documented to prevent scope creep.
 
 ## Traceability
 
-Empty initially — populated by the roadmapper agent during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| _(filled by roadmap)_ | _(pending)_ | _(pending)_ |
+| OPS-01 | Phase 0 | Pending |
+| OPS-02 | Phase 0 | Pending |
+| OPS-03 | Phase 0 | Pending |
+| OPS-04 | Phase 0 | Pending |
+| OPS-05 | Phase 0 | Pending |
+| OBS-04 | Phase 0 | Pending |
+| OBS-05 | Phase 0 | Pending |
+| AUTH-01 | Phase 1 | Pending |
+| AUTH-02 | Phase 1 | Pending |
+| AUTH-03 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Pending |
+| AUTH-06 | Phase 1 | Pending |
+| AUTH-07 | Phase 1 | Pending |
+| AUTH-08 | Phase 1 | Pending |
+| AUTH-09 | Phase 1 | Pending |
+| AUTH-10 | Phase 1 | Pending |
+| OAUTH-01 | Phase 2 | Pending |
+| OAUTH-02 | Phase 2 | Pending |
+| OAUTH-03 | Phase 2 | Pending |
+| NOTIF-01 | Phase 2 | Pending |
+| NOTIF-02 | Phase 2 | Pending |
+| NOTIF-03 | Phase 2 | Pending |
+| NOTIF-04 | Phase 2 | Pending |
+| NOTIF-05 | Phase 2 | Pending |
+| PIN-01 | Phase 2 | Pending |
+| ADMIN-01 | Phase 3 | Pending |
+| ADMIN-02 | Phase 3 | Pending |
+| ADMIN-03 | Phase 3 | Pending |
+| ADMIN-04 | Phase 3 | Pending |
+| ADMIN-05 | Phase 3 | Pending |
+| ADMIN-06 | Phase 3 | Pending |
+| ADMIN-07 | Phase 3 | Pending |
+| ORG-01 | Phase 3 | Pending |
+| ORG-02 | Phase 3 | Pending |
+| ORG-03 | Phase 3 | Pending |
+| ORG-04 | Phase 3 | Pending |
+| ORG-05 | Phase 3 | Pending |
+| ORG-06 | Phase 3 | Pending |
+| PAY-01 | Phase 3 | Pending |
+| OBS-01 | Phase 3 | Pending |
+| OBS-02 | Phase 3 | Pending |
+| OBS-03 | Phase 3 | Pending |
+| UP-01 | Phase 4 | Pending |
+| UP-02 | Phase 4 | Pending |
+| WD-01 | Phase 4 | Pending |
+| WD-02 | Phase 4 | Pending |
+| WD-03 | Phase 4 | Pending |
+| WD-04 | Phase 4 | Pending |
+| WH-01 | Phase 5 | Pending |
+| WH-02 | Phase 5 | Pending |
+| CRON-01 | Phase 5 | Pending |
+| CRON-02 | Phase 5 | Pending |
+| CRON-03 | Phase 5 | Pending |
+| CRON-04 | Phase 5 | Pending |
+| CRON-05 | Phase 5 | Pending |
+| CRON-06 | Phase 5 | Pending |
+| CRON-07 | Phase 5 | Pending |
+| TEST-01 | Phase 6 | Pending |
+| TEST-02 | Phase 6 | Pending |
+| TEST-03 | Phase 6 | Pending |
+| SCRIPT-01 | Phase 6 | Pending |
+| DOCKER-01 | Phase 6 | Pending |
+| DOC-01 | Phase 6 | Pending |
+| DOC-02 | Phase 6 | Pending |
+| ENV-01 | Phase 6 | Pending |
 
 **Coverage:**
 - v1 requirements: 56 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 56 ⚠️
+- Mapped to phases: 56
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-05-07*
-*Last updated: 2026-05-07 after initial definition*
+*Last updated: 2026-05-07 — traceability populated by roadmapper*

@@ -1,0 +1,175 @@
+// AUTH-08 — POST /api/auth/reset-password
+//
+// Consumes a PASSWORD_RESET code and updates the user's password. In a single
+// tx: hashes the new password, updates User.passwordHash, bumps
+// User.tokenVersion (RESEARCH.md Open Question #4 — kicks all existing
+// sessions, including any attacker-held one), and marks the code usedAt.
+// Does NOT issue cookies — user must log in fresh after a reset.
+//
+// Password policy gates run BEFORE looking up the user/code so banned/short
+// passwords don't burn a code attempt.
+//
+// CSRF carve-out: pre-session route — the bearer of the code is the proof.
+export const runtime = 'nodejs';
+
+import { NextResponse, type NextRequest } from 'next/server';
+import { z } from 'zod';
+import { zEmail } from '@/lib/server/zod-helpers';
+import { prisma } from '@/lib/server/prisma';
+import { redis } from '@/lib/server/redis';
+import { createEmailLimiter } from '@/lib/server/middleware/rate-limit-by-email';
+import {
+  makeRequestContext,
+  withRequestContext,
+} from '@/lib/server/observability/request-context';
+import { log } from '@/lib/server/observability/log';
+import {
+  VERIFICATION_CODE_REGEX,
+  hashPassword,
+} from '@/lib/server/auth';
+import { isBanned } from '@/lib/server/auth/banned-passwords';
+import { isPwned } from '@/lib/server/auth/hibp';
+
+const PASSWORD_MIN = Number(process.env.AUTH_PASSWORD_MIN_LENGTH ?? 10);
+
+const Body = z.object({
+  email: zEmail,
+  code: z.string().regex(VERIFICATION_CODE_REGEX, 'Invalid verification code format'),
+  newPassword: z.string().min(1),
+});
+
+const limiter = createEmailLimiter(
+  redis ? { redis } : {},
+  {
+    bucket: 'auth:reset',
+    windowMs: 15 * 60 * 1000, // 15 min (D-08)
+    max: Number(process.env.AUTH_RESET_RATE_LIMIT_MAX ?? 5),
+    code: 'TOO_MANY_RESET_ATTEMPTS',
+    message: 'Too many password-reset attempts. Try again later.',
+  },
+);
+
+function formatIssues(err: z.ZodError) {
+  return err.errors.map((e) => ({ path: e.path.join('.'), message: e.message }));
+}
+
+export async function POST(req: NextRequest): Promise<Response> {
+  const ctx = makeRequestContext(req.headers);
+  return withRequestContext(ctx, async () => {
+    const json = await req.json().catch(() => null);
+    const parsed = Body.safeParse(json);
+    if (!parsed.success) {
+      const res = NextResponse.json(
+        { error: 'VALIDATION_FAILED', issues: formatIssues(parsed.error) },
+        { status: 400 },
+      );
+      res.headers.set('x-request-id', ctx.requestId);
+      return res;
+    }
+    const { email, code, newPassword } = parsed.data;
+
+    // Password policy BEFORE looking up code so banned/short passwords don't
+    // burn a code attempt.
+    if (isBanned(newPassword)) {
+      const res = NextResponse.json(
+        { error: 'PASSWORD_BANNED', message: 'This password is too common.' },
+        { status: 400 },
+      );
+      res.headers.set('x-request-id', ctx.requestId);
+      return res;
+    }
+    if (newPassword.length < PASSWORD_MIN) {
+      const res = NextResponse.json(
+        {
+          error: 'PASSWORD_TOO_SHORT',
+          message: `Password must be at least ${PASSWORD_MIN} characters`,
+        },
+        { status: 400 },
+      );
+      res.headers.set('x-request-id', ctx.requestId);
+      return res;
+    }
+    if (process.env.PASSWORD_HIBP_CHECK === '1' && (await isPwned(newPassword))) {
+      const res = NextResponse.json(
+        {
+          error: 'PASSWORD_PWNED',
+          message: 'This password appeared in a known data breach.',
+        },
+        { status: 400 },
+      );
+      res.headers.set('x-request-id', ctx.requestId);
+      return res;
+    }
+
+    const rateFail = await limiter.check(req, email);
+    if (rateFail) return rateFail;
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (!user) {
+      const res = NextResponse.json(
+        {
+          error: 'VERIFICATION_CODE_INVALID',
+          message: 'Verification code is invalid.',
+        },
+        { status: 400 },
+      );
+      res.headers.set('x-request-id', ctx.requestId);
+      return res;
+    }
+
+    const codeRow = await prisma.verificationCode.findFirst({
+      where: {
+        userId: user.id,
+        code,
+        type: 'PASSWORD_RESET',
+        usedAt: null,
+      },
+      select: { id: true, expiresAt: true },
+    });
+    if (!codeRow) {
+      const res = NextResponse.json(
+        {
+          error: 'VERIFICATION_CODE_INVALID',
+          message: 'Verification code is invalid.',
+        },
+        { status: 400 },
+      );
+      res.headers.set('x-request-id', ctx.requestId);
+      return res;
+    }
+    if (codeRow.expiresAt.getTime() < Date.now()) {
+      const res = NextResponse.json(
+        {
+          error: 'VERIFICATION_CODE_EXPIRED',
+          message: 'Verification code has expired.',
+        },
+        { status: 400 },
+      );
+      res.headers.set('x-request-id', ctx.requestId);
+      return res;
+    }
+
+    const passwordHash = await hashPassword(newPassword);
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: {
+          passwordHash,
+          tokenVersion: { increment: 1 },
+        },
+      });
+      await tx.verificationCode.update({
+        where: { id: codeRow.id },
+        data: { usedAt: new Date() },
+      });
+    });
+
+    log.info('password reset', { userId: user.id });
+    const res = NextResponse.json({ ok: true });
+    res.headers.set('x-request-id', ctx.requestId);
+    return res;
+  });
+}

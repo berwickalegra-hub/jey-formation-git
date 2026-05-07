@@ -11,9 +11,9 @@ Requirements for the v1 release of the starter (the point at which the monolith 
 
 - [x] **OPS-01**: `DATABASE_URL` convention uses Neon `-pooler` host with `?pgbouncer=true&connection_limit=1&pool_timeout=15`; documented in `.env.example` and `CLAUDE.md`
 - [x] **OPS-02**: Every API route handler exports `runtime = 'nodejs'` (Prisma + bcrypt + Buffer break on edge); enforced via lint rule or naming convention
-- [ ] **OPS-03**: `instrumentation.ts` exports `onRequestError` from `@sentry/nextjs` so unhandled route errors are auto-captured
+- [x] **OPS-03**: `instrumentation.ts` exports `onRequestError` from `@sentry/nextjs` so unhandled route errors are auto-captured
 - [x] **OPS-04**: `CRON_SECRET` added to `.env.example` with `openssl rand -base64 32` hint; required for Phase 6 cron auth
-- [ ] **OPS-05**: Removed `experimental.instrumentationHook` from `next.config.ts` if present (deprecated since Next 15)
+- [x] **OPS-05**: Removed `experimental.instrumentationHook` from `next.config.ts` if present (deprecated since Next 15)
 
 ### Authentication
 
@@ -102,7 +102,7 @@ Requirements for the v1 release of the starter (the point at which the monolith 
 - [ ] **OBS-02**: `GET /api/admin/email-queue` lists EmailJob rows with status filter; same shape as OBS-01
 - [ ] **OBS-03**: `GET /api/admin/rate-limits` lists current rate-limit hit counters (per-key, per-window) from Redis; visibility into who's hitting limits
 - [ ] **OBS-04**: Request ID generated per inbound request, propagated to `logger` calls, returned as `X-Request-Id` response header — incident triage 10x faster
-- [ ] **OBS-05**: OpenTelemetry via `@vercel/otel` registered in `instrumentation.ts` (15 LOC); Vercel/Next.js auto-detect; gives distributed traces beyond Sentry's surface
+- [x] **OBS-05**: OpenTelemetry via `@vercel/otel` registered in `instrumentation.ts` (15 LOC); Vercel/Next.js auto-detect; gives distributed traces beyond Sentry's surface
 
 ### Tests
 
@@ -162,11 +162,11 @@ Explicitly excluded. Documented to prevent scope creep.
 |-------------|-------|--------|
 | OPS-01 | Phase 0 | Complete |
 | OPS-02 | Phase 0 | Complete |
-| OPS-03 | Phase 0 | Pending |
+| OPS-03 | Phase 0 | Complete |
 | OPS-04 | Phase 0 | Complete |
-| OPS-05 | Phase 0 | Pending |
+| OPS-05 | Phase 0 | Complete |
 | OBS-04 | Phase 0 | Pending |
-| OBS-05 | Phase 0 | Pending |
+| OBS-05 | Phase 0 | Complete |
 | AUTH-01 | Phase 1 | Pending |
 | AUTH-02 | Phase 1 | Pending |
 | AUTH-03 | Phase 1 | Pending |

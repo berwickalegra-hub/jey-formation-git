@@ -14,6 +14,17 @@
 // No CSRF check: refresh is itself authenticated via the refresh cookie and is
 // path-scoped to /api/auth. The refresh cookie cannot be used cross-site for
 // non-/api/auth requests, so CSRF would block legitimate refresh.
+//
+// WR-06 — Stateless refresh tokens (D-19): rotation here mints a NEW refresh
+// token but does NOT invalidate the OLD one — both remain valid until their
+// JWT exp (7d). This is the documented tradeoff: no `RefreshTokenRevocation`
+// table, no per-token bookkeeping. Mitigations:
+//   - 7-day TTL bounds the replay window
+//   - tokenVersion bump on password change kicks ALL refresh tokens at once
+//   - HttpOnly + Secure + SameSite=Strict cookies make exfil hard
+// Stolen-refresh-token replay (within the 7-day window, before a password
+// change) is OUT OF SCOPE for Phase 1. If the threat model changes, add
+// per-jti revocation tracking and check it inside verifyRefreshToken.
 export const runtime = 'nodejs';
 
 import 'server-only';

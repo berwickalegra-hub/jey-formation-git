@@ -23,6 +23,7 @@ import { log } from '@/lib/server/observability/log';
 import { VERIFICATION_CODE_REGEX, hashPassword } from '@/lib/server/auth';
 import { isBanned } from '@/lib/server/auth/banned-passwords';
 import { isPwned } from '@/lib/server/auth/hibp';
+import { recordSuccess } from '@/lib/server/auth/lockout';
 
 const PASSWORD_MIN = Number(process.env.AUTH_PASSWORD_MIN_LENGTH ?? 10);
 
@@ -163,6 +164,10 @@ export async function POST(req: NextRequest): Promise<Response> {
         data: { usedAt: new Date() },
       });
     });
+
+    // WR-02 — clear lockout counter on successful reset. Old password
+    // failures shouldn't carry over to the new password.
+    await recordSuccess(email);
 
     log.info('password reset', { userId: user.id });
     const res = NextResponse.json({ ok: true });

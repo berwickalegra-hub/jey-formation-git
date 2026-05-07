@@ -30,6 +30,7 @@ import {
 import { requireAuth } from '@/lib/server/middleware';
 import { isBanned } from '@/lib/server/auth/banned-passwords';
 import { isPwned } from '@/lib/server/auth/hibp';
+import { recordSuccess } from '@/lib/server/auth/lockout';
 import { prisma } from '@/lib/server/prisma';
 import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 import { log } from '@/lib/server/observability/log';
@@ -142,6 +143,13 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
       },
       select: { id: true, email: true, tokenVersion: true },
     });
+
+    // WR-02 — clear lockout counter on successful password change. Old
+    // password failures shouldn't carry over to the new password — a user
+    // who was at 4/5 failures on the old password and changes via a still-
+    // authenticated session would otherwise get locked out by their first
+    // typo on the new password.
+    await recordSuccess(updated.email);
 
     // 9. Pitfall 9: mint NEW tokens with the BUMPED tokenVersion and call
     //    setAuthCookies + setCsrfCookie so the current browser stays logged

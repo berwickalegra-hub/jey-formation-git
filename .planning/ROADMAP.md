@@ -31,7 +31,12 @@ Port `amadou-template` (Express 5 + Next.js 16 monorepo) into a single Next.js 1
   3. `pnpm lint` rejects any file under `app/api/` that exports `runtime = 'edge'` (grep/eslint rule blocks the silent-breakage pitfall)
   4. Every existing route file (`health`, `readyz`) carries `export const runtime = 'nodejs'` as its first export; `next build` completes without any edge-runtime warning
   5. `instrumentation.ts` does NOT export `experimental.instrumentationHook`; `@vercel/otel` is registered; each inbound request receives an `X-Request-Id` response header
-**Plans**: TBD
+**Plans**: 5 plans
+  - [ ] 00-01-PLAN.md — Wave 0: deps + vitest config + observability/ scaffold (@vercel/otel, fast-glob, vitest.config.ts)
+  - [ ] 00-02-PLAN.md — Wave 1: env + schema (DATABASE_URL pooler, DIRECT_URL, CRON_SECRET, schema.prisma directUrl, prisma generate)
+  - [ ] 00-03-PLAN.md — Wave 1: instrumentation.ts (onRequestError + registerOTel) + next.config.ts clean check
+  - [ ] 00-04-PLAN.md — Wave 1: runtime='nodejs' guard test + audit pay-redirect/route.ts
+  - [ ] 00-05-PLAN.md — Wave 1: request-context (ALS) module + logger wrapper
 
 ### Phase 1: Auth Routes
 **Goal**: Users can authenticate — sign up, verify email, log in, stay logged in across sessions, log out, reset passwords, and change passwords — with full enumeration resistance and per-email rate limiting
@@ -117,7 +122,7 @@ Port `amadou-template` (Express 5 + Next.js 16 monorepo) into a single Next.js 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Foundation | 0/? | Not started | - |
+| 0. Foundation | 0/5 | Not started | - |
 | 1. Auth Routes | 0/? | Not started | - |
 | 2. OAuth, Notifications, Withdrawal PIN | 0/? | Not started | - |
 | 3. Admin, Organizations, Orders | 0/? | Not started | - |

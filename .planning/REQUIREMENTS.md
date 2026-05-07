@@ -101,7 +101,7 @@ Requirements for the v1 release of the starter (the point at which the monolith 
 - [ ] **OBS-01**: `GET /api/admin/outbox` lists OutboxEvent rows (filter by status: PENDING, PROCESSING, DELIVERED, DEAD); zero new models, just SELECTs over existing OutboxEvent table — answers "why didn't this side-effect run?"
 - [ ] **OBS-02**: `GET /api/admin/email-queue` lists EmailJob rows with status filter; same shape as OBS-01
 - [ ] **OBS-03**: `GET /api/admin/rate-limits` lists current rate-limit hit counters (per-key, per-window) from Redis; visibility into who's hitting limits
-- [ ] **OBS-04**: Request ID generated per inbound request, propagated to `logger` calls, returned as `X-Request-Id` response header — incident triage 10x faster
+- [x] **OBS-04**: Request ID generated per inbound request, propagated to `logger` calls, returned as `X-Request-Id` response header — incident triage 10x faster
 - [x] **OBS-05**: OpenTelemetry via `@vercel/otel` registered in `instrumentation.ts` (15 LOC); Vercel/Next.js auto-detect; gives distributed traces beyond Sentry's surface
 
 ### Tests
@@ -165,7 +165,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | OPS-03 | Phase 0 | Complete |
 | OPS-04 | Phase 0 | Complete |
 | OPS-05 | Phase 0 | Complete |
-| OBS-04 | Phase 0 | Pending |
+| OBS-04 | Phase 0 | Complete |
 | OBS-05 | Phase 0 | Complete |
 | AUTH-01 | Phase 1 | Pending |
 | AUTH-02 | Phase 1 | Pending |

@@ -36,7 +36,7 @@ Port `amadou-template` (Express 5 + Next.js 16 monorepo) into a single Next.js 1
   - [x] 00-02-PLAN.md — Wave 1: env + schema (DATABASE_URL pooler, DIRECT_URL, CRON_SECRET, schema.prisma directUrl, prisma generate)
   - [x] 00-03-PLAN.md — Wave 1: instrumentation.ts (onRequestError + registerOTel) + next.config.ts clean check
   - [x] 00-04-PLAN.md — Wave 1: runtime='nodejs' guard test + audit pay-redirect/route.ts
-  - [ ] 00-05-PLAN.md — Wave 1: request-context (ALS) module + logger wrapper
+  - [x] 00-05-PLAN.md — Wave 1: request-context (ALS) module + logger wrapper
 
 ### Phase 1: Auth Routes
 **Goal**: Users can authenticate — sign up, verify email, log in, stay logged in across sessions, log out, reset passwords, and change passwords — with full enumeration resistance and per-email rate limiting

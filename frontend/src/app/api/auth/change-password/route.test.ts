@@ -10,14 +10,43 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { NextRequest } from 'next/server';
+import { NextRequest } from 'next/server';
 
 import { prismaMock } from '@/test-utils/prisma-mock';
-import { mockNextCookies, __cookieStore } from '@/test-utils/mock-cookies';
 
-// Mock cookies BEFORE importing the route or anything that depends on
-// next/headers. Hoisted by Vitest.
-mockNextCookies();
+// next/headers cookies() must be mocked BEFORE the route module loads.
+// vi.mock is auto-hoisted to the top of the file ONLY when the call sits at
+// module level (Pitfall 11). The mock-cookies test-util wraps the call in a
+// function body, which would not hoist; inline here for the auth-cookie path.
+// __cookieStore is a Map<string, MockCookieEntry> shared by getter/setter so
+// tests can assert what the route set.
+interface MockEntry {
+  name: string;
+  value: string;
+  options?: Record<string, unknown>;
+}
+const __cookieStore = new Map<string, MockEntry>();
+const cookieMockStore = {
+  get(name: string) {
+    const e = __cookieStore.get(name);
+    return e ? { name: e.name, value: e.value } : undefined;
+  },
+  set(name: string, value: string, options?: Record<string, unknown>) {
+    __cookieStore.set(name, { name, value, ...(options ? { options } : {}) });
+  },
+  delete(name: string) {
+    __cookieStore.delete(name);
+  },
+  has(name: string) {
+    return __cookieStore.has(name);
+  },
+  getAll() {
+    return [...__cookieStore.values()].map((e) => ({ name: e.name, value: e.value }));
+  },
+};
+vi.mock('next/headers', () => ({
+  cookies: () => Promise.resolve(cookieMockStore),
+}));
 
 // Mock banned/HIBP modules — toggled per test.
 vi.mock('@/lib/server/auth/banned-passwords', () => ({
@@ -42,12 +71,15 @@ import { PUT } from './route';
 // ---------- helpers ----------
 
 const CSRF_TOKEN = 'csrf-token-fixture-deadbeef';
-const COOKIE_HEADER = `${COOKIE_NAME}=__set_in_beforeEach__; ${CSRF_COOKIE_NAME}=${CSRF_TOKEN}`;
 
 interface BuildOpts {
   body: unknown;
+  /** Sets the `x-csrf-token` header. Pass null/undefined to omit. */
   csrf?: string | null;
-  cookieToken?: string | null;
+  /**
+   * Sets the CSRF cookie on the request `cookie` header (verifyCsrf reads
+   * via NextRequest.cookies, populated from the HTTP cookie header).
+   */
   csrfCookieValue?: string | null;
 }
 
@@ -56,52 +88,45 @@ function buildRequest(opts: BuildOpts): NextRequest {
   if (opts.csrf !== null && opts.csrf !== undefined) {
     headers.set('x-csrf-token', opts.csrf);
   }
-  // Build cookie header from explicit pieces (allows omitting either piece).
-  const cookieParts: string[] = [];
-  if (opts.cookieToken !== null && opts.cookieToken !== undefined) {
-    cookieParts.push(`${COOKIE_NAME}=${opts.cookieToken}`);
-  }
   if (opts.csrfCookieValue !== null && opts.csrfCookieValue !== undefined) {
-    cookieParts.push(`${CSRF_COOKIE_NAME}=${opts.csrfCookieValue}`);
+    headers.set('cookie', `${CSRF_COOKIE_NAME}=${opts.csrfCookieValue}`);
   }
-  if (cookieParts.length > 0) headers.set('cookie', cookieParts.join('; '));
-
-  // NextRequest accepts a standard Request; constructing via global Request
-  // ensures both NextRequest and the underlying req.cookies parser work.
-  const req = new Request('http://localhost/api/auth/change-password', {
+  return new NextRequest('http://localhost/api/auth/change-password', {
     method: 'PUT',
     headers,
     body: JSON.stringify(opts.body),
   });
-  // Cast to NextRequest. The route only relies on `headers`, `cookies`, `json()`,
-  // `method` — all surfaced by the standard Request that NextRequest extends.
-  return req as unknown as NextRequest;
+}
+
+/**
+ * Seed the mocked next/headers cookie store with the access token so
+ * requireAuth() finds it. The route reads cookies via next/headers cookies(),
+ * not via NextRequest.cookies, so the HTTP cookie header is irrelevant here.
+ */
+function seedAccessCookie(token: string): void {
+  cookieMockStore.set(COOKIE_NAME, token);
 }
 
 let validToken: string;
 let dbHash: string;
 
-// Read configured banned/HIBP mocks for per-test override.
 const isBannedMock = vi.mocked(isBanned);
 const isPwnedMock = vi.mocked(isPwned);
 
 beforeEach(async () => {
   __cookieStore.clear();
-  // Token reflects DB tokenVersion=0 so requireAuth's DB-check passes.
   validToken = await createAccessToken({
     sub: 'user_1',
     email: 'user@example.com',
     tokenVersion: 0,
   });
   dbHash = await hashPassword('Current-Pass-Old-2026');
-  // Default user lookup returns a verified user with passwordHash.
   prismaMock.user.findUnique.mockResolvedValue({
     id: 'user_1',
     email: 'user@example.com',
     passwordHash: dbHash,
     tokenVersion: 0,
   } as unknown as never);
-  // Default update returns same id with bumped tokenVersion.
   prismaMock.user.update.mockResolvedValue({
     id: 'user_1',
     email: 'user@example.com',
@@ -110,7 +135,6 @@ beforeEach(async () => {
 
   isBannedMock.mockReturnValue(false);
   isPwnedMock.mockResolvedValue(false);
-  // Reset env that affects HIBP gate.
   delete process.env.PASSWORD_HIBP_CHECK;
   delete process.env.AUTH_PASSWORD_MIN_LENGTH;
 });
@@ -119,10 +143,10 @@ beforeEach(async () => {
 
 describe('PUT /api/auth/change-password (AUTH-09)', () => {
   it('Test 1 — happy path: hashes new password, bumps tokenVersion, sets new cookies', async () => {
+    await seedAccessCookie(validToken);
     const req = buildRequest({
       body: { currentPassword: 'Current-Pass-Old-2026', newPassword: 'Brand-New-Pass-2026' },
       csrf: CSRF_TOKEN,
-      cookieToken: validToken,
       csrfCookieValue: CSRF_TOKEN,
     });
 
@@ -143,22 +167,24 @@ describe('PUT /api/auth/change-password (AUTH-09)', () => {
       },
     });
 
-    // 3 new cookies set after success
+    // 3 fresh cookies set after success (access + refresh + csrf)
     expect(__cookieStore.has(COOKIE_NAME)).toBe(true);
     expect(__cookieStore.has(REFRESH_COOKIE_NAME)).toBe(true);
     expect(__cookieStore.has(CSRF_COOKIE_NAME)).toBe(true);
 
-    // The new access cookie is NOT empty (current browser stays logged in).
+    // The new access cookie is non-empty AND distinct from the seeded one
+    // (proves the route minted a new token with the bumped tokenVersion).
     const newAccess = __cookieStore.get(COOKIE_NAME);
     expect(newAccess?.value).toBeTruthy();
     expect(newAccess?.value).not.toBe('');
+    expect(newAccess?.value).not.toBe(validToken);
   });
 
   it('Test 2 — missing CSRF header returns 403', async () => {
+    await seedAccessCookie(validToken);
     const req = buildRequest({
       body: { currentPassword: 'Current-Pass-Old-2026', newPassword: 'Brand-New-Pass-2026' },
       csrf: null,
-      cookieToken: validToken,
       csrfCookieValue: CSRF_TOKEN,
     });
 
@@ -169,10 +195,10 @@ describe('PUT /api/auth/change-password (AUTH-09)', () => {
   });
 
   it('Test 3 — missing access cookie returns 401', async () => {
+    // intentionally do NOT call seedAccessCookie
     const req = buildRequest({
       body: { currentPassword: 'Current-Pass-Old-2026', newPassword: 'Brand-New-Pass-2026' },
       csrf: CSRF_TOKEN,
-      cookieToken: null,
       csrfCookieValue: CSRF_TOKEN,
     });
 
@@ -183,13 +209,13 @@ describe('PUT /api/auth/change-password (AUTH-09)', () => {
   });
 
   it('Test 4 — wrong currentPassword returns INVALID_CREDENTIALS (no update)', async () => {
+    await seedAccessCookie(validToken);
     const req = buildRequest({
       body: {
         currentPassword: 'totally-wrong-password',
         newPassword: 'Brand-New-Pass-2026',
       },
       csrf: CSRF_TOKEN,
-      cookieToken: validToken,
       csrfCookieValue: CSRF_TOKEN,
     });
 
@@ -202,11 +228,11 @@ describe('PUT /api/auth/change-password (AUTH-09)', () => {
   });
 
   it('Test 5 — banned newPassword returns PASSWORD_BANNED', async () => {
+    await seedAccessCookie(validToken);
     isBannedMock.mockReturnValue(true);
     const req = buildRequest({
       body: { currentPassword: 'Current-Pass-Old-2026', newPassword: 'password123' },
       csrf: CSRF_TOKEN,
-      cookieToken: validToken,
       csrfCookieValue: CSRF_TOKEN,
     });
 
@@ -219,10 +245,10 @@ describe('PUT /api/auth/change-password (AUTH-09)', () => {
   });
 
   it('Test 6 — short newPassword returns PASSWORD_TOO_SHORT', async () => {
+    await seedAccessCookie(validToken);
     const req = buildRequest({
       body: { currentPassword: 'Current-Pass-Old-2026', newPassword: 'short1' },
       csrf: CSRF_TOKEN,
-      cookieToken: validToken,
       csrfCookieValue: CSRF_TOKEN,
     });
 
@@ -235,12 +261,12 @@ describe('PUT /api/auth/change-password (AUTH-09)', () => {
   });
 
   it('Test 7 — HIBP-pwned newPassword returns PASSWORD_PWNED when env enabled', async () => {
+    await seedAccessCookie(validToken);
     process.env.PASSWORD_HIBP_CHECK = '1';
     isPwnedMock.mockResolvedValue(true);
     const req = buildRequest({
       body: { currentPassword: 'Current-Pass-Old-2026', newPassword: 'Brand-New-Pass-2026' },
       csrf: CSRF_TOKEN,
-      cookieToken: validToken,
       csrfCookieValue: CSRF_TOKEN,
     });
 
@@ -253,10 +279,10 @@ describe('PUT /api/auth/change-password (AUTH-09)', () => {
   });
 
   it('Test 8 — missing newPassword returns VALIDATION_FAILED', async () => {
+    await seedAccessCookie(validToken);
     const req = buildRequest({
       body: { currentPassword: 'Current-Pass-Old-2026' },
       csrf: CSRF_TOKEN,
-      cookieToken: validToken,
       csrfCookieValue: CSRF_TOKEN,
     });
 

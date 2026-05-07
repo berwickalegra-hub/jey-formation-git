@@ -120,6 +120,9 @@ importers:
       vitest:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@20.19.39)(lightningcss@1.32.0)(terser@5.46.2)
+      vitest-mock-extended:
+        specifier: ^2.0.2
+        version: 2.0.2(typescript@5.9.3)(vitest@2.1.9(@types/node@20.19.39)(lightningcss@1.32.0)(terser@5.46.2))
 
 packages:
 
@@ -3641,6 +3644,14 @@ packages:
     peerDependencies:
       typescript: '>=4.8.4'
 
+  ts-essentials@10.2.0:
+    resolution: {integrity: sha512-z9FlLywg0XEV46Ws1FwYN4NZDMr9qAe38lTTtgVBqzhhyEgwrnCUkFe4MEqnvar1kY1kFEnlkp56bxn2g0V+UA==}
+    peerDependencies:
+      typescript: '>=4.5.0'
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
   tsconfig-paths@3.15.0:
     resolution: {integrity: sha512-2Ac2RgzDe/cn48GvOe3M+o82pEFewD3UPbyoUHHdKasHwJKjds4fLXWf/Ux5kATBKN20oaFGu+jbElp1pos0mg==}
 
@@ -3745,6 +3756,12 @@ packages:
         optional: true
       terser:
         optional: true
+
+  vitest-mock-extended@2.0.2:
+    resolution: {integrity: sha512-n3MBqVITKyclZ0n0y66hkT4UiiEYFQn9tteAnIxT0MPz1Z8nFcPUG3Cf0cZOyoPOj/cq6Ab1XFw2lM/qM5EDWQ==}
+    peerDependencies:
+      typescript: 3.x || 4.x || 5.x
+      vitest: '>=2.0.0'
 
   vitest@2.1.9:
     resolution: {integrity: sha512-MSmPM9REYqDGBI8439mA4mWhV5sKmDlBKWIYbA3lRb2PTHACE0mgKwA8yQ2xq9vxDTuk4iPrECBAEW2aoFXY0Q==}
@@ -7932,6 +7949,10 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
+  ts-essentials@10.2.0(typescript@5.9.3):
+    optionalDependencies:
+      typescript: 5.9.3
+
   tsconfig-paths@3.15.0:
     dependencies:
       '@types/json5': 0.0.29
@@ -8073,6 +8094,12 @@ snapshots:
       fsevents: 2.3.3
       lightningcss: 1.32.0
       terser: 5.46.2
+
+  vitest-mock-extended@2.0.2(typescript@5.9.3)(vitest@2.1.9(@types/node@20.19.39)(lightningcss@1.32.0)(terser@5.46.2)):
+    dependencies:
+      ts-essentials: 10.2.0(typescript@5.9.3)
+      typescript: 5.9.3
+      vitest: 2.1.9(@types/node@20.19.39)(lightningcss@1.32.0)(terser@5.46.2)
 
   vitest@2.1.9(@types/node@20.19.39)(lightningcss@1.32.0)(terser@5.46.2):
     dependencies:

@@ -10,6 +10,10 @@ export default defineConfig({
     // Without this, Vitest 2.x exits 1 on zero tests, blocking the plan's own
     // acceptance criterion ("`pnpm --filter frontend test` exits 0").
     passWithNoTests: true,
+    // Phase 1 D-27: setupFile sets JWT_SECRET / ENCRYPTION_KEY before any
+    // test module imports `@/lib/server/auth` (which throws at import time
+    // when JWT_SECRET is missing or < 32 chars).
+    setupFiles: ['./vitest.setup.ts'],
   },
   resolve: {
     alias: {

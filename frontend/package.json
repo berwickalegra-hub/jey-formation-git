@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
+    "test:integration": "echo 'Phase 1: deferred to Phase 4 — see CONTEXT.md D-26' && exit 0",
     "lint": "eslint src/",
     "typecheck": "tsc --noEmit",
     "db:push": "prisma db push",
@@ -51,6 +52,7 @@
     "tailwindcss": "^4.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.9.3",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "vitest-mock-extended": "^2.0.2"
   }
 }

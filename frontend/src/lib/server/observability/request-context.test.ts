@@ -21,11 +21,22 @@ describe('makeRequestContext', () => {
   });
 
   it('rejects malformed inbound X-Request-Id and mints a fresh one', () => {
-    const ctx = makeRequestContext(
-      new Headers({ 'x-request-id': 'evil\nlog-poison' }),
-    );
-    expect(ctx.requestId).not.toContain('\n');
-    expect(ctx.requestId).toMatch(/^[0-9a-f-]{36}$/i);
+    // Headers constructor itself rejects literal newlines (WHATWG spec), so
+    // an attacker cannot inject `\n` directly. The regex defends against the
+    // remaining surface: non-hex characters, wrong length, embedded quotes
+    // that could break log parsers.
+    const cases = [
+      'evil log-poison', // spaces (invalid hex)
+      'short', // too short (< 8 chars)
+      'a'.repeat(65), // too long (> 64 chars)
+      'not-a-uuid-but-has-bad-chars-!@#$', // disallowed punctuation
+      '"injected"', // quotes that could break JSON log parsers
+    ];
+    for (const bad of cases) {
+      const ctx = makeRequestContext(new Headers({ 'x-request-id': bad }));
+      expect(ctx.requestId).not.toBe(bad);
+      expect(ctx.requestId).toMatch(/^[0-9a-f-]{36}$/i);
+    }
   });
 
   it('records startedAt within 1s of now', () => {

@@ -14,6 +14,11 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // The `server-only` package throws at import time to enforce the
+      // server-only boundary in Next.js bundles. Vitest runs in plain Node,
+      // so we alias it to the package's empty stub for tests. Production
+      // bundles still go through Next's bundler which uses the real package.
+      'server-only': path.resolve(__dirname, './node_modules/server-only/empty.js'),
     },
   },
 });

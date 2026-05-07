@@ -10,7 +10,7 @@ Port `amadou-template` (Express 5 + Next.js 16 monorepo) into a single Next.js 1
 - Integer phases (0–7): Planned milestone work, corresponding to M0–M8 in STATUS.md
 - Decimal phases: Urgent insertions if needed (created via `/gsd-insert-phase`)
 
-- [ ] **Phase 0: Foundation** - Cross-cutting infrastructure fixes that must land before any route runs
+- [x] **Phase 0: Foundation** - Cross-cutting infrastructure fixes that must land before any route runs (completed 2026-05-07)
 - [ ] **Phase 1: Auth Routes** - 9 auth endpoints + rate-limiting + enumeration resistance
 - [ ] **Phase 2: OAuth, Notifications, Withdrawal PIN** - Google OAuth, notification CRUD, PIN management
 - [ ] **Phase 3: Admin, Organizations, Orders** - Back-office endpoints, multi-tenancy, payment orders
@@ -122,7 +122,7 @@ Port `amadou-template` (Express 5 + Next.js 16 monorepo) into a single Next.js 1
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 0. Foundation | 1/5 | In Progress|  |
+| 0. Foundation | 5/5 | Complete    | 2026-05-07 |
 | 1. Auth Routes | 0/? | Not started | - |
 | 2. OAuth, Notifications, Withdrawal PIN | 0/? | Not started | - |
 | 3. Admin, Organizations, Orders | 0/? | Not started | - |

@@ -49,11 +49,11 @@ Port `amadou-template` (Express 5 + Next.js 16 monorepo) into a single Next.js 1
   4. `POST /api/auth/forgot-password` returns 200 regardless of whether email exists; `POST /api/auth/reset-password` with a valid code + new password succeeds and invalidates the old password
   5. `PUT /api/auth/change-password` bumps `tokenVersion` (other sessions return 401 on next request); fails without `x-csrf-token` header
 **Plans**: 5 plans
-  - [ ] 01-01-PLAN.md — Wave 0: lib helpers (banned-passwords, hibp, lockout, refresh-lock, dummy-bcrypt, email-templates) + vitest setup + outbox types extension
-  - [ ] 01-02-PLAN.md — Wave 1: account creation flow (signup, verify-email, forgot-password, reset-password)
+  - [x] 01-01-PLAN.md — Wave 0: lib helpers (banned-passwords, hibp, lockout, refresh-lock, dummy-bcrypt, email-templates) + vitest setup + outbox types extension
+  - [x] 01-02-PLAN.md — Wave 1: account creation flow (signup, verify-email, forgot-password, reset-password)
   - [ ] 01-03-PLAN.md — Wave 1: session lifecycle (login, refresh, logout, me)
-  - [ ] 01-04-PLAN.md — Wave 1: change-password (only authenticated mutation)
-  - [ ] 01-05-PLAN.md — Wave 2: .env.example documentation + final phase gate
+  - [x] 01-04-PLAN.md — Wave 1: change-password (only authenticated mutation)
+  - [x] 01-05-PLAN.md — Wave 2: .env.example documentation + final phase gate
 
 ### Phase 2: OAuth, Notifications, Withdrawal PIN
 **Goal**: Google sign-in works end-to-end, users can read and acknowledge notifications, and users can manage their withdrawal PIN — the prerequisites for Phase 4 withdrawals are satisfied

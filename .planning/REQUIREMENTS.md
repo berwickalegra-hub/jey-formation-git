@@ -10,7 +10,7 @@ Requirements for the v1 release of the starter (the point at which the monolith 
 ### Foundation (Phase 0 — pre-port cross-cutting fixes)
 
 - [ ] **OPS-01**: `DATABASE_URL` convention uses Neon `-pooler` host with `?pgbouncer=true&connection_limit=1&pool_timeout=15`; documented in `.env.example` and `CLAUDE.md`
-- [ ] **OPS-02**: Every API route handler exports `runtime = 'nodejs'` (Prisma + bcrypt + Buffer break on edge); enforced via lint rule or naming convention
+- [x] **OPS-02**: Every API route handler exports `runtime = 'nodejs'` (Prisma + bcrypt + Buffer break on edge); enforced via lint rule or naming convention
 - [ ] **OPS-03**: `instrumentation.ts` exports `onRequestError` from `@sentry/nextjs` so unhandled route errors are auto-captured
 - [ ] **OPS-04**: `CRON_SECRET` added to `.env.example` with `openssl rand -base64 32` hint; required for Phase 6 cron auth
 - [ ] **OPS-05**: Removed `experimental.instrumentationHook` from `next.config.ts` if present (deprecated since Next 15)
@@ -161,7 +161,7 @@ Explicitly excluded. Documented to prevent scope creep.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | OPS-01 | Phase 0 | Pending |
-| OPS-02 | Phase 0 | Pending |
+| OPS-02 | Phase 0 | Complete |
 | OPS-03 | Phase 0 | Pending |
 | OPS-04 | Phase 0 | Pending |
 | OPS-05 | Phase 0 | Pending |

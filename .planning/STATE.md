@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 0 context gathered
-last_updated: "2026-05-07T18:57:54.281Z"
-last_activity: 2026-05-07 -- Phase 0 planning complete
+stopped_at: Completed 00-01-PLAN.md
+last_updated: "2026-05-07T19:22:45.974Z"
+last_activity: 2026-05-07
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 5
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 20
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Cloning this repo and filling `.env` produces a working Next.js app on Vercel with the same security invariants and feature parity as `amadou-template` — auth, payments, admin, webhooks, crons all wired, headless and ready to graft a UI on top.
-**Current focus:** Phase 0: Foundation
+**Current focus:** Phase 0 — Foundation
 
 ## Current Position
 
-Phase: 0 of 8 (Phase 0: Foundation)
-Plan: 0 of ? in current phase
+Phase: 0 (Foundation) — EXECUTING
+Plan: 2 of 5
 Status: Ready to execute
-Last activity: 2026-05-07 -- Phase 0 planning complete
+Last activity: 2026-05-07
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: —
 
 *Updated after each plan completion*
+| Phase 00-foundation P01 | 3 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,8 @@ Recent decisions affecting current work:
 - Roadmap: OBS-01/02/03 (admin observability endpoints) placed in Phase 3 alongside admin routes — they are admin endpoints; data may be empty until Phase 5 ships but the schema is already present
 - Roadmap: OBS-04 (request ID) and OBS-05 (OTel) placed in Phase 0 — hardest to retrofit later; 15–20 LOC; every route benefits immediately
 - Roadmap: Phase 7 is a gate-only phase (no new requirements) — lint/typecheck/test must all pass before v1 tag
+- [Phase 00-foundation]: Plan 00-01: Added passWithNoTests:true to vitest.config.ts so Wave 0 ships a runnable Vitest config before Wave 1 plans write the first test files (zero-tests exit 0)
+- [Phase 00-foundation]: Plan 00-01: @vercel/otel pulled its OTel SDK peer deps transitively; explicit @opentelemetry/* installs deferred (only add if Plan 03 dev-boot fails per RESEARCH.md Pitfall 5)
 
 ### Pending Todos
 
@@ -79,6 +82,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-05-07T18:35:08.696Z
-Stopped at: Phase 0 context gathered
-Resume file: .planning/phases/00-foundation/00-CONTEXT.md
+Last session: 2026-05-07T19:22:45.972Z
+Stopped at: Completed 00-01-PLAN.md
+Resume file: None

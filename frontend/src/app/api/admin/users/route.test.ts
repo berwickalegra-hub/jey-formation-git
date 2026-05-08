@@ -35,6 +35,7 @@ import { logAdminAction } from '@/lib/server/admin/audit';
 import { encodeCursor } from '@/lib/server/notifications/cursor';
 import { GET } from './route';
 import { PATCH as PATCH_ROLE } from './[id]/role/route';
+import { PATCH as PATCH_STATUS } from './[id]/status/route';
 import {
   seedAdmin,
   seedSuperadmin,
@@ -389,7 +390,179 @@ describe('/api/admin/users/[id]/role [Wave 2] — role change', () => {
 });
 
 describe('/api/admin/users/[id]/status [Wave 2] — suspend / restore', () => {
-  it.todo('PATCH ADMIN can suspend an ACTIVE user');
-  it.todo('PATCH only SUPERADMIN can restore a SUSPENDED user (ADMIN gets 403)');
-  it.todo('PATCH writes AdminAction with from/to status metadata');
+  it('PATCH ADMIN can suspend an ACTIVE user → 200 + AdminAction user.suspend', async () => {
+    const target = seedAdmin({ id: 'u_active', email: 'active@test.local', status: 'ACTIVE' });
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: target.id,
+      status: 'ACTIVE',
+      email: target.email,
+      name: null,
+      role: 'USER',
+    } as never);
+    prismaMock.user.update.mockResolvedValueOnce({ id: target.id, status: 'SUSPENDED' } as never);
+
+    const res = await PATCH_STATUS(
+      makePatch(`http://test/api/admin/users/${target.id}/status`, {
+        status: 'SUSPENDED',
+        reason: 'fraud',
+      }),
+      paramsOf(target.id),
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { user: { id: string; status: string } };
+    expect(body.user).toEqual({ id: target.id, status: 'SUSPENDED' });
+    expect(mockLogAdminAction).toHaveBeenCalledTimes(1);
+    expect(mockLogAdminAction).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        actorId: adminUser.id,
+        action: 'user.suspend',
+        targetType: 'User',
+        targetId: target.id,
+        metadata: { from: 'ACTIVE', to: 'SUSPENDED', reason: 'fraud' },
+      }),
+    );
+  });
+
+  it('PATCH SUSPENDED → ACTIVE by ADMIN → 403 RESTORE_REQUIRES_SUPERADMIN (no update, no AdminAction)', async () => {
+    const susp = seedSuspendedUser();
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: susp.id,
+      status: 'SUSPENDED',
+      email: susp.email,
+      name: null,
+      role: 'USER',
+    } as never);
+
+    const res = await PATCH_STATUS(
+      makePatch(`http://test/api/admin/users/${susp.id}/status`, { status: 'ACTIVE' }),
+      paramsOf(susp.id),
+    );
+
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('RESTORE_REQUIRES_SUPERADMIN');
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
+  it('PATCH SUSPENDED → ACTIVE by SUPERADMIN → 200 + AdminAction user.restore', async () => {
+    mockRequireAdmin.mockResolvedValueOnce(superadminCtx);
+    const susp = seedSuspendedUser();
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: susp.id,
+      status: 'SUSPENDED',
+      email: susp.email,
+      name: null,
+      role: 'USER',
+    } as never);
+    prismaMock.user.update.mockResolvedValueOnce({ id: susp.id, status: 'ACTIVE' } as never);
+
+    const res = await PATCH_STATUS(
+      makePatch(`http://test/api/admin/users/${susp.id}/status`, {
+        status: 'ACTIVE',
+        reason: 'appeal granted',
+      }),
+      paramsOf(susp.id),
+    );
+
+    expect(res.status).toBe(200);
+    expect(mockLogAdminAction).toHaveBeenCalledTimes(1);
+    expect(mockLogAdminAction).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        actorId: superadminUser.id,
+        action: 'user.restore',
+        targetType: 'User',
+        targetId: susp.id,
+        metadata: { from: 'SUSPENDED', to: 'ACTIVE', reason: 'appeal granted' },
+      }),
+    );
+  });
+
+  it('PATCH same-status (idempotent no-op) → 200 + NO AdminAction', async () => {
+    const target = seedAdmin({ id: 'u_active2', status: 'ACTIVE' });
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: target.id,
+      status: 'ACTIVE',
+      email: target.email,
+      name: null,
+      role: 'USER',
+    } as never);
+
+    const res = await PATCH_STATUS(
+      makePatch(`http://test/api/admin/users/${target.id}/status`, { status: 'ACTIVE' }),
+      paramsOf(target.id),
+    );
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
+  it('PATCH writes AdminAction with from/to status metadata (suspend canonical shape, no reason)', async () => {
+    const target = seedAdmin({ id: 'u_active3', status: 'ACTIVE' });
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: target.id,
+      status: 'ACTIVE',
+      email: target.email,
+      name: null,
+      role: 'USER',
+    } as never);
+    prismaMock.user.update.mockResolvedValueOnce({ id: target.id, status: 'SUSPENDED' } as never);
+
+    await PATCH_STATUS(
+      makePatch(`http://test/api/admin/users/${target.id}/status`, { status: 'SUSPENDED' }),
+      paramsOf(target.id),
+    );
+
+    expect(mockLogAdminAction).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        action: 'user.suspend',
+        metadata: { from: 'ACTIVE', to: 'SUSPENDED' },
+      }),
+    );
+  });
+
+  it('PATCH status on missing user → 404 USER_NOT_FOUND', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce(null);
+
+    const res = await PATCH_STATUS(
+      makePatch('http://test/api/admin/users/u_missing/status', { status: 'SUSPENDED' }),
+      paramsOf('u_missing'),
+    );
+
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('USER_NOT_FOUND');
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
+  it('PATCH status with invalid body → 400 VALIDATION_FAILED', async () => {
+    const res = await PATCH_STATUS(
+      makePatch('http://test/api/admin/users/u_target/status', { status: 'BOGUS' }),
+      paramsOf('u_target'),
+    );
+
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('VALIDATION_FAILED');
+  });
+
+  it('PATCH status rejects when CSRF fails', async () => {
+    mockVerifyCsrf.mockReturnValueOnce(
+      NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 }),
+    );
+
+    const res = await PATCH_STATUS(
+      makePatch('http://test/api/admin/users/u_target/status', { status: 'SUSPENDED' }),
+      paramsOf('u_target'),
+    );
+
+    expect(res.status).toBe(403);
+    expect(mockRequireAdmin).not.toHaveBeenCalled();
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+  });
 });

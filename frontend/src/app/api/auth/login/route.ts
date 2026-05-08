@@ -98,6 +98,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         passwordHash: true,
         emailVerifiedAt: true,
         tokenVersion: true,
+        status: true,
       },
     });
 
@@ -134,6 +135,18 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     if (!user.emailVerifiedAt) {
       return NextResponse.json(
         { error: 'EMAIL_NOT_VERIFIED', message: 'Please verify your email first.' },
+        { status: 403, headers: { 'x-request-id': ctx.requestId } },
+      );
+    }
+
+    // 7b. D-ADMIN-02 — refuse SUSPENDED users AFTER credentials verify (no
+    //     enumeration leak: same code path as a non-existent email up to here)
+    //     but BEFORE clearing the lockout counter or issuing cookies. Per
+    //     RESEARCH.md Pitfall 2, do NOT call recordSuccess for SUSPENDED users
+    //     — leave the lockout counter as-is.
+    if (user.status === 'SUSPENDED') {
+      return NextResponse.json(
+        { error: 'ACCOUNT_SUSPENDED', message: 'This account has been suspended. Contact support.' },
         { status: 403, headers: { 'x-request-id': ctx.requestId } },
       );
     }

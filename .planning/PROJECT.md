@@ -42,14 +42,19 @@ Cloning this repo and filling in `.env` produces a working Next.js app on Vercel
 - ✓ **NOTIF-01**: Notification routes shipped at `frontend/src/app/api/notifications/{,count,prefs}/route.ts` — GET list (cursor-paginated), PATCH mark-read, GET count, GET/PATCH prefs (deep-merge for opt-out semantics). Pure-helper layer at `frontend/src/lib/server/{oauth/error-redirect,auth/pin,notifications/cursor,notifications/prefs-merge}.ts` — 49 helper tests, 262/262 full-repo tests green
 - ⏳ **8 human-UAT items pending** in `02-HUMAN-UAT.md` (real Google round-trip, real Redis lockout state, populated-DB pagination, etc.)
 
+#### Validated in Phase 4 (Upload, Files, Withdrawals, 2026-05-08)
+
+- ✓ **UP-01**: `POST /api/upload` shipped at `frontend/src/app/api/upload/route.ts` — multipart parse via `req.formData()`, size cap (`UPLOAD_MAX_BYTES`), MIME allowlist (`UPLOAD_ALLOWED_MIME`), magic-byte sniff via `lib/server/upload/sniff.ts` (D-UP-04 ordering — gates BEFORE byte read), R2 PUT, `prisma.fileUpload.create`. Stable error codes: `STORAGE_NOT_CONFIGURED` (503), `UPLOAD_MISSING_FILE` (400), `FILE_TOO_LARGE` (413), `INVALID_MIME` (415), `MAGIC_BYTE_MISMATCH` (415), `UPLOAD_FAILED` (502). Path-traversal mitigation: `{userId}/{randomUUID()}.{ext}` key naming.
+- ✓ **UP-02**: `GET /api/files/[...key]` shipped at `frontend/src/app/api/files/[...key]/route.ts` — owner-gated R2 stream proxy (404-collapse on owner mismatch to avoid existence leaks), `ReadableStream<Uint8Array>` piped directly to `Response` (no buffering, no `transformToByteArray`), ETag + Content-Length forwarded, `Cache-Control: private, max-age=3600`.
+- ✓ **WD-01..04**: `POST /api/withdrawals` (advisory-lock + Serializable tx, CF-12 — `lockUserTx(tx, userId)` is FIRST awaited statement inside `prisma.$transaction(fn, { isolationLevel: Serializable })`) and `GET /api/withdrawals` (cursor-paginated own list on `requestedAt`) at `frontend/src/app/api/withdrawals/route.ts`. 8 stable guard codes (`AMOUNT_BELOW_MIN`, `AMOUNT_ABOVE_MAX`, `DAILY_LIMIT_EXCEEDED`, `COOLDOWN_ACTIVE`, `PIN_NOT_SET`, `PIN_REQUIRED`, `PIN_INVALID`, `INSUFFICIENT_BALANCE`). Post-commit notification via `createNotification` with `dedupeKey: withdrawal-requested:${id}` (Pitfall 4 — never poisons response). `WITHDRAWAL_BALANCE_CHECK=0` documented in `.env.example` with FINANCIAL-SAFETY warning. P2034 → 409 `TRANSIENT_CONFLICT`. **452/452 full-repo tests green** at phase close.
+- ⏳ **3 human-UAT items deferred** in 04-VERIFICATION.md (live R2 PUT smoke, concurrent Postgres POSTs against real DB, MinIO path-style override)
+
 ### Active
 
 <!-- Remaining port surface (M3–M8 per STATUS.md) plus monolith-specific work. Each is a hypothesis until shipped. -->
 
 **Domain routes**
-- [ ] **UP-01**: Port `upload` (replace multer with `req.formData()` + magic-byte sniff, gated by `UPLOAD_ALLOWED_MIME`) and `files/[...key]` (R2 stream proxy)
 - [ ] **PAY-01**: Port `orders` route (Bictorys charge via `PaymentProvider` interface, single-instance circuit breaker)
-- [ ] **WD-01**: Port `withdrawals` (GET list + POST) using `pg_advisory_xact_lock(hashtext(userId))` inside Serializable tx — must reuse the existing `withdrawals/lock.ts` exactly, never re-implement
 - [ ] **ADMIN-01**: Port the 9 admin endpoints (users search/detail/role-change, orders filter, withdrawals filter + manual cancel, audit-log paginated, `/me`) — every mutation MUST call `logAdminAction`
 
 **Webhooks & background work (Vercel-native)**
@@ -143,4 +148,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-08 after Phase 2 (OAuth, Notifications, Withdrawal-PIN) completion*
+*Last updated: 2026-05-08 after Phase 4 (Upload, Files, Withdrawals) completion*

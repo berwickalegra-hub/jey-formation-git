@@ -766,27 +766,27 @@ These directives have the same authority as locked CONTEXT.md decisions:
 
 **These should be confirmed at planning** — A2 (APP_URL env var) and A3 (DB schema state) are the highest-risk if wrong; A1/A4/A5/A6 are low-risk verifications.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should the OAuth callback's brand-new-user creation be wrapped in a single Prisma transaction with the welcome notification?**
    - What we know: D-03 says use `createNotification` (which catches P2002). The callback already uses `prisma.$transaction` for User+OAuthAccount creation.
    - What's unclear: Should the welcome notification be inside the same tx or a separate write afterwards?
-   - Recommendation: **Outside the tx** (separate write). `createNotification` is idempotent on `dedupeKey`, so a retry of the OAuth callback after partial commit is safe. Putting it inside would require passing `tx` through `createNotification`, which is doable but adds API surface.
+   - **RESOLVED:** Outside the tx (separate write). `createNotification` is idempotent on `dedupeKey`, so a retry of the OAuth callback after partial commit is safe. Putting it inside would require passing `tx` through `createNotification`, which is doable but adds API surface. Adopted by Plan 02-01.
 
 2. **What `name` and `avatarUrl` do we set when D-01 links Google to an existing email/password user?**
    - What we know: D-01 says silent linking; D-02 says set on brand-new user.
    - What's unclear: For existing users, do we overwrite `User.name` / `User.avatarUrl` from Google's claims, or leave them as-is?
-   - Recommendation: **Leave as-is** for existing users (don't surprise them with their Google avatar replacing whatever they had). Only populate on brand-new users. If a "settings: link Google" UI lands later, it can offer "import name/avatar from Google" as an explicit toggle. Flag for planner to confirm.
+   - **RESOLVED:** Leave as-is for existing users (don't surprise them with their Google avatar replacing whatever they had). Only populate on brand-new users. If a "settings: link Google" UI lands later, it can offer "import name/avatar from Google" as an explicit toggle. Adopted by Plan 02-01.
 
 3. **The `examples/frontend-pages/auth-error.tsx` file uses lowercase keys (`oauth_email_unverified`); CONTEXT.md D-06 mandates UPPERCASE (`GOOGLE_EMAIL_NOT_VERIFIED`).**
    - What we know: D-06 codes are the protocol contract; the example page is "EXAMPLE — copy this into your project's app router and customize."
    - What's unclear: Should Phase 2 also patch the example page to use UPPERCASE, or is the page "downstream/out-of-scope"?
-   - Recommendation: **Phase 2 emits UPPERCASE per D-06 (the contract); the example page is reference UI marked do-not-modify-in-Phase-2 per CONTEXT.md.** Leave a comment in the OAuth callback or in a follow-up doc note that the example page needs a casing update for production accuracy. Flag for planner.
+   - **RESOLVED:** Phase 2 emits UPPERCASE per D-06 (the contract); the example page is reference UI marked do-not-modify-in-Phase-2 per CONTEXT.md. Adopted by Plans 02-00 (error-redirect helper) and 02-01.
 
 4. **Is `OAUTH_GENERIC` the correct fallback code, or should we surface more granular codes for unexpected `arctic` errors (`ArcticFetchError`, `UnexpectedResponseError`)?**
    - What we know: arctic exports `OAuth2RequestError`, `ArcticFetchError`, `UnexpectedErrorResponseBodyError`, `UnexpectedResponseError`. D-06 only covers `OAUTH_CODE_EXCHANGE_FAILED` (specifically `OAuth2RequestError`) and `OAUTH_GENERIC` (everything else).
    - What's unclear: Granularity tradeoff.
-   - Recommendation: **Stick with the 5 D-06 codes** (don't add more). Catch `OAuth2RequestError` → `OAUTH_CODE_EXCHANGE_FAILED`; everything else → `OAUTH_GENERIC` + `log.error` with full error. Clients shouldn't need to differentiate beyond "user can retry."
+   - **RESOLVED:** Stick with the 5 D-06 codes (don't add more). Catch `OAuth2RequestError` → `OAUTH_CODE_EXCHANGE_FAILED`; everything else → `OAUTH_GENERIC` + `log.error` with full error. Clients shouldn't need to differentiate beyond "user can retry." Adopted by Plans 02-00 and 02-01.
 
 ## Environment Availability
 

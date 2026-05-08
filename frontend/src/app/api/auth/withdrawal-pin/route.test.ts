@@ -201,9 +201,8 @@ describe('POST /api/auth/withdrawal-pin', () => {
 
   it('auth gate: requireAuth bails → 401; user.update NOT called', async () => {
     mockRequireAuth.mockResolvedValue(
-      // Simulate the middleware short-circuit return.
-      // requireAuth returns NextResponse on failure.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // Simulate the middleware short-circuit return — requireAuth returns
+      // NextResponse on failure.
       new (await import('next/server')).NextResponse(JSON.stringify({ error: 'Missing token' }), {
         status: 401,
       }) as never,

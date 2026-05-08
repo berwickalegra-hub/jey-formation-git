@@ -27,6 +27,10 @@ model User {
   // SUPERADMIN can promote/demote other admins. Bootstrap an initial
   // SUPERADMIN via `pnpm db:make-superadmin <email>` (see scripts).
   role              String    @default("USER") // USER | ADMIN | SUPERADMIN
+  // Account status. ACTIVE = login + refresh allowed; SUSPENDED = both
+  // refused with 403 ACCOUNT_SUSPENDED. Mutated via /api/admin/users/[id]/status
+  // (ADMIN can suspend; only SUPERADMIN can restore).
+  status            String    @default("ACTIVE") // ACTIVE | SUSPENDED
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -47,6 +51,7 @@ model User {
 
   @@index([email])
   @@index([role])
+  @@index([status])
 }
 
 // ───────────────────────────────────────────────────────────────────────
@@ -278,6 +283,11 @@ model Order {
   customerPhone   String?
   customerName    String?
   metadata        Json? // app-specific fields
+
+  // Stripe-grade idempotency. Required header on POST /api/orders; replay
+  // with same value returns the original Order row instead of double-charging.
+  // Nullable so existing rows pre-migration don't break the @unique constraint.
+  idempotencyKey  String?   @unique
 
   // Provider reference
   provider         String // e.g. "bictorys"

@@ -12,7 +12,7 @@ autonomous: true
 requirements: [OBS-01, OBS-02, OBS-03]
 must_haves:
   truths:
-    - GET /api/admin/outbox returns paginated OutboxEvent rows filterable by ?status (PENDING|PROCESSING|SENT|DEAD) and ?kind
+    - GET /api/admin/outbox returns paginated OutboxEvent rows filterable by ?status (PENDING|SENT|FAILED|DEAD) and ?kind
     - GET /api/admin/email-queue returns EmailJob rows with `body` truncated to ≤200 chars as `bodyPreview` (PII protection)
     - GET /api/admin/rate-limits returns bucket summary across known prefixes (auth:login, auth:signup, auth:verify, auth:forgot, auth:reset, auth:pin, lockout)
     - rate-limits SCAN hard-caps at 1000 keys per bucket and emits `truncated: true` when capped
@@ -128,7 +128,7 @@ Verified key prefixes (RESEARCH.md A1 + A2):
     - .planning/phases/03-admin-organizations-orders/03-RESEARCH.md "Pitfall 4: OutboxEvent field naming mismatch" + "Endpoint Inventory" §7
   </read_first>
   <behavior>
-    - GET `/api/admin/outbox` accepts `?status=PENDING|PROCESSING|SENT|DEAD`, `?kind=<string>`, `?cursor`, `?limit=1..50`. Returns `200 { items: OutboxEvent[], nextCursor }`. ADMIN role suffices.
+    - GET `/api/admin/outbox` accepts `?status=PENDING|SENT|FAILED|DEAD`, `?kind=<string>`, `?cursor`, `?limit=1..50`. Returns `200 { items: OutboxEvent[], nextCursor }`. ADMIN role suffices.
     - Filter `?kind` is exact match (e.g., `?kind=notification.payment_received`). Per Pitfall 4 we standardize on `kind` everywhere — query param + response field both named `kind`.
     - Field select: full row — `id, kind, payload, status, attempts, lastError, scheduledAt, sentAt, createdAt`. The `payload` JSON may be large but admins triaging "why didn't this side-effect run" need it.
   </behavior>

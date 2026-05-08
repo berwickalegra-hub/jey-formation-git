@@ -1,9 +1,30 @@
-// OBS-02 — Admin email-queue visibility (read-only, paginated, PII-truncated).
+// OBS-02 — Admin email-queue visibility (read-only, paginated, PII-scoped).
 //
 // Threat T-03-04-01 (Information Disclosure): EmailJob.html may contain user
-// PII (verification codes, password reset URLs, magic links). The admin
+// secrets (verification codes, password-reset URLs, magic links). The admin
 // response truncates `html` to ≤200 chars as `bodyPreview` and never returns
 // the full `html` or `text` fields. D-OBS-02.
+//
+// WR-02 — explicit PII disclosure policy (no field-level redaction beyond
+// the html/text drop):
+//
+//   - `to` is returned verbatim. Admins already see recipient emails on the
+//     /api/admin/users user-detail and audit-log surfaces; redacting here
+//     would not actually limit ADMIN-tier visibility.
+//   - `subject` is returned verbatim. Some transactional templates encode
+//     the verification code in the subject line ("Verify your email — code
+//     XXXXXXXX"). Admins are trusted with this per CONTEXT.md (D-OBS-02:
+//     PII access is allowed for admins). Subject visibility is the same
+//     policy applied to outbox events on /api/admin/outbox.
+//   - `lastError` is returned verbatim — used for incident triage; we
+//     accept that provider-bounce messages may echo recipient addresses.
+//   - `bodyPreview` is the FIRST 200 chars of `html` only. The full `html`
+//     and `text` fields are NEVER selected for the response; the cap is
+//     defense-in-depth against tokens that appear past the first 200 chars.
+//
+// If a future threat-model decision tightens this (e.g. mask `to`,
+// strip alphanumeric runs ≥6 in subject), the masking should land here so
+// the admin response is the single chokepoint.
 //
 // Sequence:
 //   requireAdmin('ADMIN') → enforceAdminRateLimit → parse filters →
@@ -23,10 +44,7 @@ import {
   decodeCursor,
   encodeCursor,
 } from '@/lib/server/pagination/paginate';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 
 type EmailJobStatus = 'PENDING' | 'SENT' | 'FAILED' | 'DEAD';
 const VALID_STATUSES = new Set<EmailJobStatus>(['PENDING', 'SENT', 'FAILED', 'DEAD']);
@@ -106,9 +124,6 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const nextCursor =
       hasMore && last ? encodeCursor({ createdAt: last.createdAt, id: last.id }) : null;
 
-    return NextResponse.json(
-      { items, nextCursor },
-      { headers: { 'x-request-id': ctx.requestId } },
-    );
+    return NextResponse.json({ items, nextCursor }, { headers: { 'x-request-id': ctx.requestId } });
   });
 }

@@ -3,7 +3,7 @@
 // Delete this file or replace it with your own implementation.
 //
 // Demonstrates the full withdrawal flow including the PIN gate that the
-// backend (`WITHDRAWAL_REQUIRE_PIN=1`) optionally enforces:
+// server (`WITHDRAWAL_REQUIRE_PIN=1`) optionally enforces:
 //
 //   1. On mount, GET /api/auth/withdrawal-pin → { hasPin: boolean }.
 //      If true: prompt the user for their 4-12 digit PIN before submit.

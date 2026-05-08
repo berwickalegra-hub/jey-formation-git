@@ -1,6 +1,6 @@
 // EXAMPLE — copy to frontend/src/app/admin/withdrawals/page.tsx and customize.
 // Demonstrates a list with filters + a per-row admin mutation (cancel),
-// plus the audit-log surface — every cancel goes through the backend's
+// plus the audit-log surface — every cancel goes through the server's
 // logAdminAction so /admin/audit-log keeps a trace.
 'use client';
 

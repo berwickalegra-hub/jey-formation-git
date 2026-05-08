@@ -2,7 +2,7 @@
 // This file is NOT part of the starter — the template ships zero design.
 // Delete this file or replace it with your own implementation.
 //
-// /forgot-password is enumeration-resistant: backend always returns
+// /forgot-password is enumeration-resistant: the server always returns
 // "If this account exists, a reset code has been sent" regardless of
 // whether the email is registered. UI mirrors that — show the same
 // confirmation screen on success either way.

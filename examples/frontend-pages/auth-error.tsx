@@ -1,8 +1,8 @@
 // EXAMPLE — copy this into your project's app router as /auth/error/page.tsx
 // and customize the UI freely. This file is NOT part of the starter.
 //
-// The OAuth callback ([backend/src/routes/oauth.ts]) redirects here with
-// `?error=<code>` when something goes wrong — bad state, code-exchange
+// The OAuth callback (Next.js API route at /api/auth/oauth/google/callback)
+// redirects here with `?error=<code>` when something goes wrong — bad state, code-exchange
 // failure, unverified Google email, etc. We map the stable codes to
 // friendly messages and let the user retry.
 'use client';

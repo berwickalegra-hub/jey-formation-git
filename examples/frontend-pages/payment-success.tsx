@@ -6,7 +6,7 @@
  *
  * The default `successUrl` for /api/orders is `${FRONTEND_URL}/payment/success?o=<orderId>`.
  * Replace this skeleton with your project's real receipt UI — the
- * backend already has the canonical Order record by the time we land here.
+ * server already has the canonical Order record by the time we land here.
  */
 interface PageProps {
   searchParams: Promise<{ o?: string }>;

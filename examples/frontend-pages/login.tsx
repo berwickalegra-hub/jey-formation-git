@@ -6,13 +6,14 @@
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { api, ApiError, BACKEND_URL, storeCsrfToken } from '@/lib/api';
+import { api, ApiError, storeCsrfToken } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Google sign-in is a top-level browser navigation — not a fetch — so the
-// browser carries cookies + receives Set-Cookie from the backend's
+// browser carries cookies + receives Set-Cookie from the OAuth route's
 // callback redirect. Using a plain <a> avoids any fetch/CORS plumbing.
-const googleSignInHref = `${BACKEND_URL}/api/auth/oauth/google/start?next=/dashboard`;
+// Same-origin Next.js API route — relative URL is enough.
+const googleSignInHref = '/api/auth/oauth/google/start?next=/dashboard';
 
 export default function LoginPage() {
   const router = useRouter();

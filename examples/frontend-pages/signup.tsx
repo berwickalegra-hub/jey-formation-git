@@ -11,10 +11,11 @@
 import { useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { api, ApiError, BACKEND_URL } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 
 // Top-level navigation (not fetch) — see login.tsx for the same pattern.
-const googleSignInHref = `${BACKEND_URL}/api/auth/oauth/google/start?next=/dashboard`;
+// Same-origin Next.js API route — relative URL is enough.
+const googleSignInHref = '/api/auth/oauth/google/start?next=/dashboard';
 
 export default function SignupPage() {
   const router = useRouter();

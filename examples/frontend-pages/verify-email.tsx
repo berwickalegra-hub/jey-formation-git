@@ -4,7 +4,7 @@
 //
 // Reads `?email=` and `?code=` from the URL (links from the verification
 // email pre-fill both). The user can also paste/type the 8-char code
-// manually. On success the backend sets the auth cookies and we redirect
+// manually. On success the server sets the auth cookies and we redirect
 // to the dashboard.
 'use client';
 

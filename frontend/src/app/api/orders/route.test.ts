@@ -18,6 +18,14 @@ import { prismaMock } from '@/test-utils/prisma-mock';
 import { mockNextCookies } from '@/test-utils/mock-cookies';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest, NextResponse } from 'next/server';
+import { createHash } from 'node:crypto';
+
+// CR-02 — recompute the body fingerprint the route stores at insert time.
+// Mirrors the algorithm in `frontend/src/app/api/orders/route.ts::fingerprintBody`.
+function fingerprintBody(input: { amount: number; currency: string }): string {
+  const canonical = JSON.stringify({ amount: input.amount, currency: input.currency });
+  return createHash('sha256').update(canonical).digest('hex');
+}
 
 mockNextCookies();
 
@@ -237,6 +245,135 @@ describe('POST /api/orders [Wave 1] — idempotency', () => {
     const body = await res.json();
     expect(body.error).toBe('IDEMPOTENCY_KEY_REQUIRED');
     expect(prismaMock.order.findUnique).not.toHaveBeenCalled();
+  });
+
+  // CR-02 — body fingerprint binding for idempotency-key replays.
+  // A leaked / reused key with a different (amount, currency) MUST NOT
+  // return the prior order's paymentUrl. Stripe-grade semantics: 422.
+  it('POST replay with same key + DIFFERENT amount → 422 IDEMPOTENCY_KEY_BODY_MISMATCH', async () => {
+    // Existing PENDING order created under amount=1000 (no stored hash —
+    // exercises the defensive fallback that compares amount + currency).
+    prismaMock.order.findUnique.mockResolvedValue(
+      seededOrder({
+        id: 'order_existing',
+        amount: 1000,
+        currency: 'XOF',
+        idempotencyKey: 'replay-mismatch-key',
+        metadata: null,
+      }) as never,
+    );
+
+    const res = await POST(
+      makePost({ amount: 9999, currency: 'XOF' }, { idempotencyKey: 'replay-mismatch-key' }),
+    );
+
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error).toBe('IDEMPOTENCY_KEY_BODY_MISMATCH');
+    // No new charge attempted, no new row created.
+    expect(prismaMock.order.create).not.toHaveBeenCalled();
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
+  it('POST replay with same key + same amount + DIFFERENT currency → 422', async () => {
+    prismaMock.order.findUnique.mockResolvedValue(
+      seededOrder({
+        id: 'order_existing_currency',
+        amount: 1000,
+        currency: 'XOF',
+        idempotencyKey: 'replay-currency-mismatch',
+        metadata: null,
+      }) as never,
+    );
+
+    const res = await POST(
+      makePost({ amount: 1000, currency: 'USD' }, { idempotencyKey: 'replay-currency-mismatch' }),
+    );
+
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error).toBe('IDEMPOTENCY_KEY_BODY_MISMATCH');
+  });
+
+  it('POST replay using stored fingerprint hash matches → 200', async () => {
+    // Re-create a row that has a stored fingerprint matching {amount:1000,currency:XOF}.
+    const hash = fingerprintBody({ amount: 1000, currency: 'XOF' });
+    prismaMock.order.findUnique.mockResolvedValue(
+      seededOrder({
+        id: 'order_existing_hash_match',
+        amount: 1000,
+        currency: 'XOF',
+        idempotencyKey: 'replay-hash-match',
+        paymentUrl: 'https://checkout.test/bictorys/pay/existing',
+        metadata: { idempotencyBodyHash: hash } as never,
+      }) as never,
+    );
+
+    const res = await POST(
+      makePost({ amount: 1000, currency: 'XOF' }, { idempotencyKey: 'replay-hash-match' }),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.id).toBe('order_existing_hash_match');
+    expect(prismaMock.order.create).not.toHaveBeenCalled();
+  });
+
+  it('POST replay using stored fingerprint hash that DIFFERS → 422', async () => {
+    prismaMock.order.findUnique.mockResolvedValue(
+      seededOrder({
+        id: 'order_existing_hash_mismatch',
+        amount: 1000,
+        currency: 'XOF',
+        idempotencyKey: 'replay-hash-mismatch',
+        // Hash that does not correspond to the current body — even though
+        // amount/currency happen to match in the row, the stored hash takes
+        // precedence so the replay is refused.
+        metadata: {
+          idempotencyBodyHash: 'deadbeef'.repeat(8),
+        } as never,
+      }) as never,
+    );
+
+    const res = await POST(
+      makePost({ amount: 1000, currency: 'XOF' }, { idempotencyKey: 'replay-hash-mismatch' }),
+    );
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.error).toBe('IDEMPOTENCY_KEY_BODY_MISMATCH');
+  });
+
+  it('POST 400 IDEMPOTENCY_KEY_INVALID when key exceeds 200 chars', async () => {
+    const huge = 'x'.repeat(201);
+    const res = await POST(makePost({ amount: 1000, currency: 'XOF' }, { idempotencyKey: huge }));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe('IDEMPOTENCY_KEY_INVALID');
+    // Length check happens BEFORE the DB lookup.
+    expect(prismaMock.order.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('POST stores idempotencyBodyHash in metadata at insert time', async () => {
+    prismaMock.order.findUnique.mockResolvedValue(null as never);
+    prismaMock.order.create.mockResolvedValue(seededOrder() as never);
+    prismaMock.order.update.mockResolvedValue(seededOrder() as never);
+
+    await POST(
+      makePost(
+        { amount: 2500, currency: 'XOF', metadata: { source: 'web' } },
+        { idempotencyKey: 'fingerprint-store-key' },
+      ),
+    );
+
+    const createArgs = prismaMock.order.create.mock.calls[0]?.[0];
+    expect(createArgs?.data.metadata).toMatchObject({
+      source: 'web',
+      idempotencyBodyHash: expect.any(String),
+    });
+    // Hash is stable for the same canonical body.
+    const expectedHash = fingerprintBody({ amount: 2500, currency: 'XOF' });
+    expect((createArgs?.data.metadata as { idempotencyBodyHash: string }).idempotencyBodyHash).toBe(
+      expectedHash,
+    );
   });
 });
 

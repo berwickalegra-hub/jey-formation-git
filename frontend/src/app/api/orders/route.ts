@@ -13,18 +13,30 @@
 //
 // Error mapping:
 //   missing Idempotency-Key  → 400 IDEMPOTENCY_KEY_REQUIRED
+//   Idempotency-Key too long → 400 IDEMPOTENCY_KEY_INVALID
 //   replay PENDING/PAID      → 200 with prior row's paymentUrl
+//   replay body mismatch     → 422 IDEMPOTENCY_KEY_BODY_MISMATCH (CR-02)
 //   replay FAILED/EXPIRED/REFUNDED → 503 PAYMENT_PROVIDER_UNAVAILABLE
 //   Zod failure              → 400 VALIDATION_FAILED
 //   missing BICTORYS_* env   → 503 PAYMENT_PROVIDER_UNCONFIGURED
 //   CircuitOpenError         → 503 PAYMENT_PROVIDER_UNAVAILABLE + Retry-After
 //   provider.charge throw    → 502 PAYMENT_FAILED (breaker has counted it)
 //
+// CR-02 — body fingerprint binding for Idempotency-Key replays.
+// The fingerprint is a SHA-256 of canonicalized `{amount, currency}` JSON,
+// stored on `Order.metadata.idempotencyBodyHash` at insert time. On replay
+// with the same key but a different body, we 422 instead of returning the
+// prior order's paymentUrl. This is Stripe-grade semantics. We use the
+// existing `metadata` Json column rather than introducing a new dedicated
+// column to keep the live fix migration-free; a follow-up plan should
+// promote this to a typed `Order.idempotencyBodyHash String?` column.
+//
 // `runtime = 'nodejs'` is required by the runtime-enforcement test
 // (frontend/src/lib/server/observability/runtime-enforcement.test.ts).
 export const runtime = 'nodejs';
 
 import 'server-only';
+import { createHash } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
@@ -38,6 +50,21 @@ import {
   getProvider,
   PaymentProviderUnconfiguredError,
 } from '@/lib/server/payments/provider-singleton';
+
+// CR-02 helpers ────────────────────────────────────────────────────────
+// Idempotency-Key length cap. 200 chars matches Stripe's documented limit
+// and prevents unbounded keyspace abuse via huge keys.
+const IDEM_KEY_MAX_LEN = 200;
+
+// SHA-256 of the canonicalized request body. Only the fields that affect
+// the charge outcome are included — amount + currency. Optional fields
+// (customerEmail, customerPhone, customerName, metadata) are excluded
+// because they do not change what the user is billed; including them
+// would generate spurious 422s for cosmetic re-tries.
+function fingerprintBody(input: { amount: number; currency: string }): string {
+  const canonical = JSON.stringify({ amount: input.amount, currency: input.currency });
+  return createHash('sha256').update(canonical).digest('hex');
+}
 
 // D-PAY-04 — body schema. amount must be a positive integer in the smallest
 // currency unit (CF-10). currency defaults to XOF (FCFA, Senegal). All
@@ -76,12 +103,67 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         { status: 400, headers: { 'x-request-id': ctx.requestId } },
       );
     }
+    // CR-02: bound the key length so an attacker cannot exhaust the unique
+    // index with arbitrarily large keys.
+    if (idemKey.length > IDEM_KEY_MAX_LEN) {
+      return NextResponse.json(
+        {
+          error: 'IDEMPOTENCY_KEY_INVALID',
+          message: `Idempotency-Key exceeds ${IDEM_KEY_MAX_LEN} characters`,
+        },
+        { status: 400, headers: { 'x-request-id': ctx.requestId } },
+      );
+    }
 
-    // 4. Replay (Pitfall 3 — echo the outcome, not the row)
+    // 4. Zod (D-PAY-04) — parsed BEFORE replay so we can fingerprint the
+    // current body and compare against the stored fingerprint of the row
+    // that originally created this idempotency key (CR-02).
+    const parsed = Body.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          error: 'VALIDATION_FAILED',
+          message: 'Invalid request body',
+          issues: parsed.error.issues,
+        },
+        { status: 400, headers: { 'x-request-id': ctx.requestId } },
+      );
+    }
+    const bodyHash = fingerprintBody({
+      amount: parsed.data.amount,
+      currency: parsed.data.currency,
+    });
+
+    // 5. Replay (Pitfall 3 — echo the outcome, not the row)
     const existing = await prisma.order.findUnique({
       where: { idempotencyKey: idemKey },
     });
     if (existing) {
+      // CR-02 — body fingerprint binding. If the prior order was created
+      // under a different (amount, currency), refuse the replay with 422
+      // (Stripe semantics). The stored fingerprint lives on metadata
+      // until a dedicated column is added.
+      const existingMeta = (existing.metadata ?? null) as { idempotencyBodyHash?: unknown } | null;
+      const storedHash =
+        existingMeta && typeof existingMeta.idempotencyBodyHash === 'string'
+          ? existingMeta.idempotencyBodyHash
+          : null;
+      // Defensive fallback: if the stored row predates the fingerprint
+      // (no hash recorded), fall back to comparing the load-bearing fields
+      // directly. This protects rows created before the CR-02 deploy.
+      const matchesBody =
+        storedHash !== null
+          ? storedHash === bodyHash
+          : existing.amount === parsed.data.amount && existing.currency === parsed.data.currency;
+      if (!matchesBody) {
+        return NextResponse.json(
+          {
+            error: 'IDEMPOTENCY_KEY_BODY_MISMATCH',
+            message: 'Idempotency-Key already used for a different request body.',
+          },
+          { status: 422, headers: { 'x-request-id': ctx.requestId } },
+        );
+      }
       if (existing.status === 'PENDING' || existing.status === 'PAID') {
         return NextResponse.json(
           {
@@ -105,19 +187,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 5. Zod (D-PAY-04)
-    const parsed = Body.safeParse(await req.json().catch(() => null));
-    if (!parsed.success) {
-      return NextResponse.json(
-        {
-          error: 'VALIDATION_FAILED',
-          message: 'Invalid request body',
-          issues: parsed.error.issues,
-        },
-        { status: 400, headers: { 'x-request-id': ctx.requestId } },
-      );
-    }
-
     // 6. Lazy provider init (Pitfall 7 — translate to 503, never 500)
     let provider;
     try {
@@ -137,6 +206,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // 7. Insert PENDING Order — gives us a stable id usable as externalRef
     // and the row that Pitfall 3's replay branch will read on retry.
+    //
+    // CR-02 — store the body fingerprint inside `metadata` under the
+    // reserved key `idempotencyBodyHash`. We merge with any client-supplied
+    // metadata so domain fields are preserved. A future migration should
+    // promote this to a dedicated typed column on Order.
+    const mergedMetadata: Prisma.InputJsonValue = {
+      ...(parsed.data.metadata ?? {}),
+      idempotencyBodyHash: bodyHash,
+    };
     const order = await prisma.order.create({
       data: {
         userId: auth.user.sub,
@@ -149,9 +227,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         customerEmail: parsed.data.customerEmail ?? auth.user.email,
         ...(parsed.data.customerPhone ? { customerPhone: parsed.data.customerPhone } : {}),
         ...(parsed.data.customerName ? { customerName: parsed.data.customerName } : {}),
-        ...(parsed.data.metadata
-          ? { metadata: parsed.data.metadata as Prisma.InputJsonValue }
-          : {}),
+        metadata: mergedMetadata,
       },
     });
 

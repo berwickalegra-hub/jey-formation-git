@@ -21,12 +21,24 @@
     "db:migrate:deploy": "pnpm --filter frontend run db:migrate:deploy",
     "db:migrate:status": "pnpm --filter frontend run db:migrate:status",
     "db:studio": "pnpm --filter frontend run db:studio",
-    "db:make-superadmin": "pnpm --filter frontend run db:make-superadmin"
+    "db:make-superadmin": "pnpm --filter frontend run db:make-superadmin",
+    "prepare": "husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,mjs,cjs}": [
+      "prettier --write",
+      "eslint --fix --max-warnings=0"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
     "eslint": "^9.18.0",
     "globals": "^15.14.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.2",
     "prettier": "^3.4.2",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.20.0"

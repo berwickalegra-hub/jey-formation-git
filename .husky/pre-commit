@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+# Run prettier + eslint on staged files (lint-staged config in root package.json).
+# Then run typecheck across the workspace as a fast safety net (~2-3s).
+# Tests are NOT run here — they run in CI. To skip locally, use `git commit --no-verify`.
+
+pnpm exec lint-staged
+pnpm typecheck

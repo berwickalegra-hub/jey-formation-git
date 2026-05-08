@@ -17,7 +17,7 @@ jobs:
       ENCRYPTION_KEY: aGVsbG8td29ybGQtdGhpcy1pcy0zMi1ieXRlcy1sb25n
       COOKIE_PREFIX: app
       NEXT_PUBLIC_COOKIE_PREFIX: app
-      AUTH_FORGOT_TARGET_LATENCY_MS: "0"
+      AUTH_FORGOT_TARGET_LATENCY_MS: '0'
 
     steps:
       - uses: actions/checkout@v4

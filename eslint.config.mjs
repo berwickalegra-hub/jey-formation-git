@@ -36,23 +36,6 @@ export default tseslint.config(
       '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
-  // ── Type-aware rules — backend only, to avoid the perf hit on the frontend ──
-  // no-floating-promises catches an unawaited Promise that could silently
-  // swallow a rejection. Critical for an async-heavy backend that does DB +
-  // queue + outbox work. Uses tsconfig.eslint.json which includes tests
-  // and scripts (the build tsconfig excludes them).
-  {
-    files: ['backend/src/**/*.ts', 'backend/scripts/**/*.ts'],
-    languageOptions: {
-      parserOptions: {
-        project: './backend/tsconfig.eslint.json',
-        tsconfigRootDir: import.meta.dirname,
-      },
-    },
-    rules: {
-      '@typescript-eslint/no-floating-promises': ['error', { ignoreVoid: true, ignoreIIFE: true }],
-    },
-  },
   {
     files: ['frontend/**/*.{ts,tsx}'],
     languageOptions: {

@@ -95,7 +95,11 @@ Port `amadou-template` (Express 5 + Next.js 16 monorepo) into a single Next.js 1
   2. `GET /api/files/[...key]` with a valid key streams the file from R2 (when configured) or serves DB-stored content; a non-existent key returns 404
   3. `POST /api/withdrawals` with no PIN set returns `{ code: "PIN_NOT_SET" }`; with an incorrect PIN returns `{ code: "PIN_INVALID" }`; two concurrent POST requests for the same user result in exactly one PENDING row and one `{ code: "INSUFFICIENT_BALANCE" }` — the advisory-lock + Serializable tx prevents the double-spend
   4. `WITHDRAWAL_BALANCE_CHECK=0` is documented in `.env.example` with a visible financial-safety warning comment; the default (check enabled) is tested and rejects requests with insufficient balance
-**Plans**: TBD
+**Plans**: 4 plans
+  - [ ] 04-01-scaffold-r2-fixtures-tests-PLAN.md — Wave 0: r2-client lazy-init lib + r2-mock fixture + admin-fixtures (seedActiveUserWithPin, seedWithdrawal) + 3 RED route.test.ts files + .env.example UPLOAD/R2/WITHDRAWAL blocks (incl. FINANCIAL-SAFETY warning) + env-shape.test.ts assertion
+  - [ ] 04-02-upload-route-PLAN.md — Wave 1: POST /api/upload (multipart + magic-byte sniff + R2 PUT + DB record) — UP-01
+  - [ ] 04-03-files-stream-route-PLAN.md — Wave 1: GET /api/files/[...key] (owner-gated R2 stream proxy with ETag forwarding) — UP-02
+  - [ ] 04-04-withdrawals-route-PLAN.md — Wave 1: POST + GET /api/withdrawals (advisory-lock + Serializable tx + 8-code guard chain + cursor pagination on requestedAt) — WD-01..04
 
 ### Phase 5: Webhooks and Vercel Cron
 **Goal**: Bictorys payment webhooks are processed idempotently with HMAC verification, and all five background jobs run as Vercel Cron route handlers with proper batching and CRON_SECRET auth

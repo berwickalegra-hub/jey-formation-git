@@ -21,6 +21,7 @@
 // route's module-scope env reads see the right values. `vi.unstubAllEnvs`
 // in afterEach prevents bleed across tests.
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
+import { NextResponse } from 'next/server';
 import { mockR2Client } from '@/test-utils/r2-mock';
 
 const r2 = mockR2Client();
@@ -135,9 +136,8 @@ describe('POST /api/upload (RED — Wave 1 will turn these green)', () => {
 
   it('storage not configured', async () => {
     vi.stubEnv('R2_ACCOUNT_ID', '');
-    const { getR2Client, StorageNotConfiguredError } = await import(
-      '@/lib/server/upload/r2-client'
-    );
+    const { getR2Client, StorageNotConfiguredError } =
+      await import('@/lib/server/upload/r2-client');
     (getR2Client as unknown as Mock).mockImplementationOnce(() => {
       throw new StorageNotConfiguredError();
     });
@@ -183,7 +183,10 @@ describe('POST /api/upload (RED — Wave 1 will turn these green)', () => {
 
   it('no auth returns 401', async () => {
     const { requireAuth } = await import('@/lib/server/middleware');
-    (requireAuth as unknown as Mock).mockReturnValueOnce(new Response(null, { status: 401 }));
+    // requireAuth bails with a NextResponse — route guards via `instanceof NextResponse`.
+    (requireAuth as unknown as Mock).mockReturnValueOnce(
+      NextResponse.json({ code: 'UNAUTHORIZED' }, { status: 401 }),
+    );
     const { POST } = await import('./route');
     const f = new File([new Uint8Array([0xff, 0xd8, 0xff])], 'a.jpg', { type: 'image/jpeg' });
     const res = await POST(makeReq(f) as never);

@@ -27,6 +27,7 @@
 // Status codes mirror `validateWithdrawalRequest`'s `status` field —
 // see frontend/src/lib/server/withdrawals/guards.ts.
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
+import { NextRequest, NextResponse } from 'next/server';
 
 const lockSpy = vi.fn();
 vi.mock('@/lib/server/withdrawals/lock', () => ({
@@ -136,7 +137,9 @@ function makePostReq(body: Partial<PostBody>) {
 }
 
 function makeGetReq(query: string = '') {
-  return new Request(`http://localhost/api/withdrawals${query}`);
+  // Route reads `req.nextUrl.searchParams` (CLAUDE.md convention, mirrors
+  // app/api/admin/withdrawals/route.ts). Plain `Request` has no `.nextUrl`.
+  return new NextRequest(`http://localhost/api/withdrawals${query}`);
 }
 
 const validBody: PostBody = {
@@ -167,7 +170,7 @@ describe('POST /api/withdrawals (RED — Wave 1 will turn these green)', () => {
     const res = await POST(makePostReq(validBody) as never);
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.id).toBe('w-1');
+    expect(body.withdrawalId).toBe('w-1');
     expect(body.status).toBe('PENDING');
     expect(lockSpy).toHaveBeenCalled();
   });
@@ -253,7 +256,10 @@ describe('POST /api/withdrawals (RED — Wave 1 will turn these green)', () => {
 
   it('no auth returns 401', async () => {
     const { requireAuth } = await import('@/lib/server/middleware');
-    (requireAuth as unknown as Mock).mockReturnValueOnce(new Response(null, { status: 401 }));
+    // requireAuth bails with a NextResponse — route guards via `instanceof NextResponse`.
+    (requireAuth as unknown as Mock).mockReturnValueOnce(
+      NextResponse.json({ code: 'UNAUTHORIZED' }, { status: 401 }),
+    );
     const { POST } = await import('./route');
     const res = await POST(makePostReq(validBody) as never);
     expect(res.status).toBe(401);

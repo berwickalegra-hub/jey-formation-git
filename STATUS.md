@@ -2,7 +2,44 @@
 
 Cloned from [`amadou-template`](../amadou-template) on 2026-05-07 as a Next.js full-stack variant (no separate Express backend). This document is the source of truth for what's done and what's left.
 
-## ✅ DONE (commits `509fede` → `81409a1`)
+## ✅ DONE
+
+### Phase 0 — Foundation (commit `dfb4aab`)
+
+- Vitest config + `server-only` alias
+- Observability primitives: `makeRequestContext`, `withRequestContext`, structured `log`
+- `runtime='nodejs'` enforcement test (CI fails if any new route omits the export)
+- Prisma client + 4 migrations under `frontend/prisma/`
+
+### Phase 1 — Auth Routes (commits `058f185` → `ce02cd4`, fixes `9d82636` → `cac03e5`)
+
+All 9 auth routes shipped under `frontend/src/app/api/auth/*/route.ts` plus 6 lib helpers under `frontend/src/lib/server/auth/`:
+
+| Endpoint                | Method | Status | Requirement |
+| ----------------------- | ------ | ------ | ----------- |
+| `signup`                | POST   | ✓      | AUTH-01     |
+| `login`                 | POST   | ✓      | AUTH-02     |
+| `verify-email`          | POST   | ✓      | AUTH-03     |
+| `refresh`               | POST   | ✓      | AUTH-04     |
+| `logout`                | POST   | ✓      | AUTH-05     |
+| `me`                    | GET    | ✓      | AUTH-06     |
+| `forgot-password`       | POST   | ✓      | AUTH-07     |
+| `reset-password`        | POST   | ✓      | AUTH-08     |
+| `change-password`       | PUT    | ✓      | AUTH-09     |
+
+Lib helpers: `banned-passwords` · `hibp` (k-anonymity) · `lockout` (Redis sliding-window + memory fallback) · `refresh-lock` (SETNX single-flight + Lua release) · `dummy-bcrypt` · `email-templates` (HTML-escaped). All 1 critical + 7 warnings from the standard-depth code review have been auto-fixed (`01-REVIEW-FIX.md`). 140/140 tests pass; typecheck + lint clean. Phase 1 verification status: `human_needed` — 3 live-stack UAT items remain (E2E happy path, real-Redis lockout, real-Redis refresh single-flight) and persist in `01-HUMAN-UAT.md`.
+
+### Doc + tooling cleanup (commits `25c1cac` → `dce8bbe`)
+
+- CI workflow now targets the monolith (`--filter frontend`, drop `BACKEND_URL` env)
+- `CLAUDE.md` rewritten for App Router + Next.js 16 (was 25 dead `backend/` references)
+- `README.md` rewritten for monolith architecture (was 29 dead `backend` references)
+- Husky 9 + lint-staged 17 — pre-commit hook runs prettier + eslint + typecheck
+- `eslint.config.mjs` dead `backend/src/**` block removed
+
+---
+
+## 📚 Earlier scaffold work (already on master, kept here for archaeology)
 
 ### M1 — Scaffold
 
@@ -31,39 +68,7 @@ All `backend/src/lib/**` → `frontend/src/lib/server/**`:
 
 ## 🔨 TODO — explicit roadmap
 
-The remaining work is well-bounded but substantial: **3,257 lines of route code across 12 files**, plus 5 cron loops, scripts, tests, Docker, docs. Recommend porting in **separate focused sessions** to keep quality up.
-
-### M3 — Auth routes (CONTINUE) | source: `backend/src/routes/auth.ts` (709 lines)
-
-Port to `frontend/src/app/api/auth/<endpoint>/route.ts`:
-
-| Endpoint | Method | Notes |
-|---|---|---|
-| `signup` | POST | Enumeration-resistant: identical 201 regardless of email existence; dummy bcrypt work; NO cookies set |
-| `login` | POST | Per-email rate limit (10/15m), failed-attempts counter, lockout |
-| `logout` | POST | Clears `<prefix>-token`, `<prefix>-refresh`, `<prefix>-csrf` |
-| `refresh` | POST | Reads refresh cookie (path-scoped to `/api/auth`), single-flight semantics |
-| `me` | GET | `requireAuth`, returns `{ user: { sub, email } }` |
-| `verify-email` | POST | Issues auth cookies on success (this is where the real session starts) |
-| `forgot-password` | POST | Always 200 — no enumeration |
-| `reset-password` | POST | Code + newPassword |
-| `change-password` | PUT | requireAuth + verifyCsrf, bumps `tokenVersion` |
-
-Pattern for each handler:
-```ts
-export const runtime = 'nodejs';
-export async function POST(req: NextRequest) {
-  const csrfFail = verifyCsrf(req);
-  if (csrfFail) return csrfFail;
-  const auth = await requireAuth(req.headers.get('authorization'));
-  if (auth instanceof NextResponse) return auth;
-  const body = parseBodySchema.safeParse(await req.json());
-  if (!body.success) return NextResponse.json({ error: ... }, { status: 400 });
-  // ... handler logic
-  await setAuthCookies(accessToken, refreshToken);
-  return NextResponse.json({ user: ... });
-}
-```
+The remaining work is well-bounded but substantial: **~2,548 lines of route code across 11 files** (auth M3 is now done — see `## ✅ DONE` above), plus 5 cron loops, scripts, tests, Docker. Recommend porting in **separate focused sessions** to keep quality up.
 
 ### M4 — Simple routes | source: 4 files, ~535 lines
 
@@ -107,11 +112,11 @@ Each route checks `req.headers.get('authorization') === \`Bearer ${process.env.C
 
 - `frontend/scripts/{make-superadmin,seed-dev}.ts` — runnable via `tsx`, uses `frontend/src/lib/server/prisma.ts`
 - Drop `smoke-test.ts` or rewrite as Vitest (HTTP smoke against `localhost:3000`)
-- `frontend/vitest.config.ts` — setupFiles for JWT_SECRET/ENCRYPTION_KEY fixtures
-- Port the 18 backend test files (`*.test.ts`) — most should work as-is once imports are fixed; route tests need rewrite (no supertest — use `fetch` against test server)
+- ~~`frontend/vitest.config.ts` — setupFiles for JWT_SECRET/ENCRYPTION_KEY fixtures~~ ✓ done in Phase 0/1
+- Port remaining backend test files for non-auth routes (auth tests already shipped in Phase 1)
 - `Dockerfile` (single service, runs `next start`)
 - `docker-compose.yml` — drop `backend` service, keep `db` + `redis` + `mailpit` + `minio`
-- Rewrite `README.md` + `CLAUDE.md` to reflect monolith architecture (no "raw body before express.json()", no backend boot file, etc.)
+- ~~Rewrite `README.md` + `CLAUDE.md` to reflect monolith architecture~~ ✓ done (commits `1b530dd`, `8c8d0e4`)
 
 ### M8 — Final pass
 

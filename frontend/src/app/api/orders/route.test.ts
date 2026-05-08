@@ -220,6 +220,31 @@ describe('POST /api/orders [Wave 1] — idempotency', () => {
     expect(mockExecute).not.toHaveBeenCalled();
   });
 
+  // WR-01 — in-flight replay. If the prior request crashed between order.create
+  // and the post-charge update, the row is PENDING with paymentUrl=null. The
+  // client must NOT receive a 200 with paymentUrl=null (would dead-redirect).
+  it('POST replay of PENDING order with null paymentUrl → 503 PAYMENT_IN_FLIGHT', async () => {
+    prismaMock.order.findUnique.mockResolvedValue(
+      seededOrder({
+        id: 'order_inflight',
+        status: 'PENDING',
+        paymentUrl: null,
+        idempotencyKey: 'inflight-key',
+      }) as never,
+    );
+
+    const res = await POST(
+      makePost({ amount: 1000, currency: 'XOF' }, { idempotencyKey: 'inflight-key' }),
+    );
+
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.error).toBe('PAYMENT_IN_FLIGHT');
+    expect(res.headers.get('Retry-After')).toBe('5');
+    expect(prismaMock.order.create).not.toHaveBeenCalled();
+    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
   it('POST replay of FAILED order returns 503 PAYMENT_PROVIDER_UNAVAILABLE (Pitfall 3)', async () => {
     prismaMock.order.findUnique.mockResolvedValue(
       seededOrder({

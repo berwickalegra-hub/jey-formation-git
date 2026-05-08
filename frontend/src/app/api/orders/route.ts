@@ -165,6 +165,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         );
       }
       if (existing.status === 'PENDING' || existing.status === 'PAID') {
+        // WR-01 — guard against the in-flight crash race. If the prior
+        // request crashed between `prisma.order.create` and the post-charge
+        // `update` that sets paymentUrl, this row is PENDING with a null
+        // paymentUrl. Returning that to the client leaves them stuck (no
+        // URL to redirect to) and the breaker.execute side never runs again
+        // because the row already exists. Emit 503 PAYMENT_IN_FLIGHT with a
+        // Retry-After so the client can poll until the prior attempt either
+        // populates paymentUrl or transitions to FAILED via the Vercel
+        // cron expiration job.
+        if (existing.status === 'PENDING' && !existing.paymentUrl) {
+          return NextResponse.json(
+            {
+              error: 'PAYMENT_IN_FLIGHT',
+              message: 'Prior attempt did not complete; retry shortly.',
+            },
+            {
+              status: 503,
+              headers: {
+                'x-request-id': ctx.requestId,
+                'Retry-After': '5',
+              },
+            },
+          );
+        }
         return NextResponse.json(
           {
             id: existing.id,

@@ -698,22 +698,22 @@ export async function GET(_req: NextRequest): Promise<NextResponse> {
 
 **No `[ASSUMED]` claims remain** — all critical claims are verified against the codebase or Upstash documentation.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should admin reads carry their own request-context wrapping?**
    - What we know: All Phase 1/2 routes use `withRequestContext`.
    - What's unclear: Pattern 1 above wraps every handler — confirm with planner that the per-route wrap (vs a shared HOF) is acceptable or extract a helper.
-   - Recommendation: Keep per-route wrap; it's already idiomatic. Defer DRY refactor to a future cleanup pass.
+   - **RESOLVED:** Keep per-route wrap; it's already idiomatic. Defer DRY refactor to a future cleanup pass.
 
 2. **`PATCH /api/admin/users/[id]/role` self-demotion — should it be allowed?**
    - What we know: D-ADMIN-01 silent on this; CF-09 only forbids last-SUPERADMIN demotion.
    - What's unclear: A SUPERADMIN demoting themselves to ADMIN is technically allowed by current rules (provided another SUPERADMIN exists).
-   - Recommendation: Allow it (matches CONTEXT.md); document in audit metadata via `actorId === targetId`.
+   - **RESOLVED:** Allow it (matches CONTEXT.md); document in audit metadata via `actorId === targetId`.
 
 3. **`/api/admin/rate-limits` — should it include the lockout keys (`auth:lockout:*`)?**
    - What we know: D-OBS-03 lists buckets `login, signup, forgot-password, reset-password, resend-verification, verify-email, pin`.
    - What's unclear: Lockout keys are not under `rl:` prefix; they're separate.
-   - Recommendation: Include them as a 7th synthetic bucket called `lockout` (scan `auth:lockout:*`) — admin needs to see who's locked out. Plan can confirm with user.
+   - **RESOLVED:** Include them as a 7th synthetic bucket called `lockout` (scan `auth:lockout:*`) — admin needs to see who's locked out.
 
 ## Environment Availability
 

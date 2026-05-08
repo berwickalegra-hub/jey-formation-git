@@ -42,11 +42,16 @@ function makePatch(body: unknown, opts: { csrf?: 'match' | 'missing' | 'header-o
     // header set, cookie absent — still valid because verifyCsrf only fails if header missing or token mismatches an existing cookie
     headers['cookie'] = '';
   }
-  return new NextRequest('http://test/api/notifications', {
-    method: 'PATCH',
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  // Two-branch construction to satisfy exactOptionalPropertyTypes — Next's
+  // RequestInit doesn't allow `body: undefined` in the literal. Mirror
+  // verify-email/route.test.ts.
+  return body === undefined
+    ? new NextRequest('http://test/api/notifications', { method: 'PATCH', headers })
+    : new NextRequest('http://test/api/notifications', {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(body),
+      });
 }
 
 function notif(overrides: Partial<{ id: string; createdAt: Date; readAt: Date | null }> = {}) {
@@ -110,12 +115,13 @@ describe('GET /api/notifications', () => {
     prismaMock.notification.findMany.mockResolvedValue([] as never);
     await GET(makeGet(`http://test/api/notifications?limit=10&cursor=${encodeURIComponent(cursor)}`));
     const args = prismaMock.notification.findMany.mock.calls[0]?.[0];
-    expect(args?.where?.OR).toBeDefined();
-    expect(args?.where?.OR?.[0]?.createdAt?.lt).toBeInstanceOf(Date);
-    expect((args?.where?.OR?.[0]?.createdAt?.lt as Date).toISOString()).toBe(
-      '2026-05-02T00:00:00.000Z',
-    );
-    expect(args?.where?.OR?.[1]?.id?.lt).toBe('n-9');
+    const or = args?.where?.OR as Array<Record<string, unknown>> | undefined;
+    expect(or).toBeDefined();
+    const firstCreatedAt = (or?.[0]?.createdAt ?? {}) as { lt?: Date };
+    expect(firstCreatedAt.lt).toBeInstanceOf(Date);
+    expect((firstCreatedAt.lt as Date).toISOString()).toBe('2026-05-02T00:00:00.000Z');
+    const secondId = (or?.[1]?.id ?? {}) as { lt?: string };
+    expect(secondId.lt).toBe('n-9');
   });
 
   it('Test 5: ?unread=true adds readAt:null to where', async () => {

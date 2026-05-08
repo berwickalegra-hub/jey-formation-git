@@ -76,7 +76,10 @@ export async function PATCH(req: NextRequest): Promise<NextResponse> {
       select: { prefs: true },
     });
     const existing = readPrefs(existingRow?.prefs);
-    const merged = mergePrefs(existing, parsed.data.prefs);
+    // Cast to NotificationPrefs — Zod inference produces an explicit
+    // `email?: boolean | undefined` shape (exactOptionalPropertyTypes),
+    // while NotificationPrefs uses `email?: boolean`. Structurally identical.
+    const merged = mergePrefs(existing, parsed.data.prefs as NotificationPrefs);
 
     await prisma.notificationPreferences.upsert({
       where: { userId: auth.user.sub },

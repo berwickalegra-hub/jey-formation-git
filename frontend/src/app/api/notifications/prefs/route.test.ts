@@ -29,11 +29,16 @@ function makePatch(body: unknown, opts: { csrf?: 'match' | 'missing' } = {}): Ne
     headers['x-csrf-token'] = 'csrf-tok';
     headers['cookie'] = 'app-csrf=csrf-tok';
   }
-  return new NextRequest('http://test/api/notifications/prefs', {
-    method: 'PATCH',
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  // Two-branch construction to satisfy exactOptionalPropertyTypes — Next's
+  // RequestInit doesn't allow `body: undefined` in the literal. Mirror
+  // verify-email/route.test.ts.
+  return body === undefined
+    ? new NextRequest('http://test/api/notifications/prefs', { method: 'PATCH', headers })
+    : new NextRequest('http://test/api/notifications/prefs', {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(body),
+      });
 }
 
 beforeEach(() => {

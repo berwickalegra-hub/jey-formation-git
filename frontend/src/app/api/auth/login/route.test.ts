@@ -171,7 +171,7 @@ describe('POST /api/auth/login', () => {
     expect((await res.json()).error).toBe('VALIDATION_FAILED');
   });
 
-  it('Test 9 (D-ADMIN-02): SUSPENDED user with valid credentials — 403 ACCOUNT_SUSPENDED, no cookies, no recordSuccess', async () => {
+  it('Test 9 (D-ADMIN-02): SUSPENDED user with valid credentials — 403 ACCOUNT_SUSPENDED, no cookies, recordSuccess clears counter (WR-04)', async () => {
     prismaMock.user.findUnique.mockResolvedValue({
       id: 'u_susp',
       email: 'suspended@b.com',
@@ -188,8 +188,11 @@ describe('POST /api/auth/login', () => {
     const body = await res.json();
     expect(body.error).toBe('ACCOUNT_SUSPENDED');
     expect(body.message).toMatch(/suspended/i);
-    // Pitfall 2 — recordSuccess MUST NOT be called (lockout counter preserved).
-    expect(recordSuccess).not.toHaveBeenCalled();
+    // WR-04 — recordSuccess IS called: credentials passed verifyPassword,
+    // so the user is legitimate; clearing the lockout counter prevents
+    // post-restore lockout (where N-1 pre-suspension failures + 1 fresh
+    // failure would lock a just-restored user out on the first attempt).
+    expect(recordSuccess).toHaveBeenCalledWith('suspended@b.com');
     // No cookies issued.
     expect(__cookieStore.has('app-token')).toBe(false);
     expect(__cookieStore.has('app-refresh')).toBe(false);

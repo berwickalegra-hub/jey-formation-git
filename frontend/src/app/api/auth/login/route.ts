@@ -141,12 +141,23 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     // 7b. D-ADMIN-02 — refuse SUSPENDED users AFTER credentials verify (no
     //     enumeration leak: same code path as a non-existent email up to here)
-    //     but BEFORE clearing the lockout counter or issuing cookies. Per
-    //     RESEARCH.md Pitfall 2, do NOT call recordSuccess for SUSPENDED users
-    //     — leave the lockout counter as-is.
+    //     but BEFORE issuing cookies.
+    //
+    //     WR-04: clear the lockout counter for SUSPENDED users via
+    //     `recordSuccess`. The credentials already passed verifyPassword, so
+    //     the account holder is legitimate — there is nothing more to deter
+    //     by pinning the counter. Without this, every login attempt by a
+    //     suspended user accrues toward the lockout, and a SUPERADMIN
+    //     restore leaves the user one failed attempt away from a fresh
+    //     lockout. Clearing here keeps the counter clean across the
+    //     suspend → restore lifecycle.
     if (user.status === 'SUSPENDED') {
+      await recordSuccess(email);
       return NextResponse.json(
-        { error: 'ACCOUNT_SUSPENDED', message: 'This account has been suspended. Contact support.' },
+        {
+          error: 'ACCOUNT_SUSPENDED',
+          message: 'This account has been suspended. Contact support.',
+        },
         { status: 403, headers: { 'x-request-id': ctx.requestId } },
       );
     }

@@ -12,10 +12,7 @@ import type { Prisma } from '@prisma/client';
 import { requireAdmin } from '@/lib/server/middleware';
 import { prisma } from '@/lib/server/prisma';
 import { enforceAdminRateLimit } from '@/lib/server/middleware/rate-limit-by-userid';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 
 const USER_SELECT = {
   id: true,
@@ -51,9 +48,6 @@ export async function GET(
         { status: 404, headers: { 'x-request-id': reqCtx.requestId } },
       );
     }
-    return NextResponse.json(
-      { user },
-      { headers: { 'x-request-id': reqCtx.requestId } },
-    );
+    return NextResponse.json({ user }, { headers: { 'x-request-id': reqCtx.requestId } });
   });
 }

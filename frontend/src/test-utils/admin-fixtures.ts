@@ -14,13 +14,7 @@
 // returns the same shape every time so tests can assert exact rows.
 // Tests that need uniqueness override fields explicitly.
 import { vi } from 'vitest';
-import type {
-  User,
-  Order,
-  OutboxEvent,
-  EmailJob,
-  Prisma,
-} from '@prisma/client';
+import type { User, Order, OutboxEvent, EmailJob, Prisma } from '@prisma/client';
 import type { PaymentProvider, ChargeResult } from '@/lib/server/payments/provider';
 
 const FROZEN_NOW = new Date('2026-05-08T12:00:00.000Z');
@@ -42,7 +36,8 @@ function buildUser(overrides: UserOverrides = {}): User {
   return {
     id: overrides.id ?? `user_${Math.random().toString(36).slice(2, 10)}`,
     email: overrides.email ?? `user-${Date.now()}@test.local`,
-    passwordHash: overrides.passwordHash ?? '$2b$12$fakehashfakehashfakehashfakehashfakehashfakeHASHE',
+    passwordHash:
+      overrides.passwordHash ?? '$2b$12$fakehashfakehashfakehashfakehashfakehashfakeHASHE',
     emailVerifiedAt: overrides.emailVerifiedAt ?? FROZEN_NOW,
     tokenVersion: 0,
     withdrawalPinHash: null,
@@ -227,9 +222,7 @@ export function mockRedis(map: Record<string, string | number> = {}): MockRedisS
 
   return {
     scan,
-    mget: vi.fn(async (...keys: string[]) =>
-      keys.map((k) => store.get(k)?.value ?? null),
-    ),
+    mget: vi.fn(async (...keys: string[]) => keys.map((k) => store.get(k)?.value ?? null)),
     ttl: vi.fn(async (key: string) => store.get(key)?.ttl ?? -2),
     get: vi.fn(async (key: string) => store.get(key)?.value ?? null),
     incr: vi.fn(async (key: string) => {

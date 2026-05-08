@@ -26,16 +26,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 import type { Prisma } from '@prisma/client';
 import { requireAdmin } from '@/lib/server/middleware';
 import { prisma } from '@/lib/server/prisma';
-import {
-  clampLimit,
-  decodeCursor,
-  encodeCursor,
-} from '@/lib/server/pagination/paginate';
+import { clampLimit, decodeCursor, encodeCursor } from '@/lib/server/pagination/paginate';
 import { enforceAdminRateLimit } from '@/lib/server/middleware/rate-limit-by-userid';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 
 const WITHDRAWAL_SELECT = {
   id: true,
@@ -105,13 +98,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const items = hasMore ? rows.slice(0, limit) : rows;
     const last = items[items.length - 1];
     const nextCursor =
-      hasMore && last
-        ? encodeCursor({ createdAt: last.requestedAt, id: last.id })
-        : null;
+      hasMore && last ? encodeCursor({ createdAt: last.requestedAt, id: last.id }) : null;
 
-    return NextResponse.json(
-      { items, nextCursor },
-      { headers: { 'x-request-id': ctx.requestId } },
-    );
+    return NextResponse.json({ items, nextCursor }, { headers: { 'x-request-id': ctx.requestId } });
   });
 }

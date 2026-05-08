@@ -71,8 +71,16 @@ beforeEach(() => {
 
 describe('/api/admin/users [Wave 1] — list', () => {
   it('GET returns paginated users for ADMIN', async () => {
-    const u1 = userRow({ id: 'u1', email: 'alpha@test.local', createdAt: new Date('2026-05-03T00:00:00Z') });
-    const u2 = userRow({ id: 'u2', email: 'beta@test.local', createdAt: new Date('2026-05-02T00:00:00Z') });
+    const u1 = userRow({
+      id: 'u1',
+      email: 'alpha@test.local',
+      createdAt: new Date('2026-05-03T00:00:00Z'),
+    });
+    const u2 = userRow({
+      id: 'u2',
+      email: 'beta@test.local',
+      createdAt: new Date('2026-05-02T00:00:00Z'),
+    });
     prismaMock.user.findMany.mockResolvedValueOnce([u1, u2] as never);
 
     const res = await GET(makeGet('http://test/api/admin/users'));
@@ -149,9 +157,7 @@ describe('/api/admin/users [Wave 1] — list', () => {
     prismaMock.user.findMany.mockResolvedValueOnce([
       userRow({ id: 'u3', createdAt: new Date('2026-05-01T00:00:00Z') }),
     ] as never);
-    await GET(
-      makeGet(`http://test/api/admin/users?cursor=${encodeURIComponent(cursorVal)}`),
-    );
+    await GET(makeGet(`http://test/api/admin/users?cursor=${encodeURIComponent(cursorVal)}`));
     const args = prismaMock.user.findMany.mock.calls[0]?.[0];
     const where = args?.where as Record<string, unknown> | undefined;
     expect(where?.['OR']).toBeDefined();

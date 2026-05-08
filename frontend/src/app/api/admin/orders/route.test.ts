@@ -74,9 +74,7 @@ describe('/api/admin/orders [Wave 1] — list', () => {
   it('GET filters by since/until window', async () => {
     prismaMock.order.findMany.mockResolvedValueOnce([] as never);
     await GET(
-      makeGet(
-        'http://test/api/admin/orders?since=2026-01-01T00:00:00Z&until=2026-12-31T23:59:59Z',
-      ),
+      makeGet('http://test/api/admin/orders?since=2026-01-01T00:00:00Z&until=2026-12-31T23:59:59Z'),
     );
     const args = prismaMock.order.findMany.mock.calls[0]?.[0];
     const where = args?.where as { createdAt?: { gte?: Date; lte?: Date } } | undefined;
@@ -95,9 +93,7 @@ describe('/api/admin/orders [Wave 1] — list', () => {
   });
 
   it('GET cursor pagination emits nextCursor when hasMore', async () => {
-    const rows = Array.from({ length: 21 }, (_, i) =>
-      seedOrder({ id: `o${i}` }),
-    );
+    const rows = Array.from({ length: 21 }, (_, i) => seedOrder({ id: `o${i}` }));
     // Force monotonic createdAt so buildPage's cursor is deterministic
     rows.forEach((r, i) => {
       (r as { createdAt: Date }).createdAt = new Date(Date.UTC(2026, 4, 21 - i));

@@ -152,9 +152,7 @@ describe('/api/admin/withdrawals [Wave 1] — list', () => {
       id: 'w_prev',
     });
     prismaMock.withdrawal.findMany.mockResolvedValueOnce([] as never);
-    await GET(
-      makeGet(`http://test/api/admin/withdrawals?cursor=${encodeURIComponent(cursorVal)}`),
-    );
+    await GET(makeGet(`http://test/api/admin/withdrawals?cursor=${encodeURIComponent(cursorVal)}`));
     const args = prismaMock.withdrawal.findMany.mock.calls[0]?.[0];
     const where = args?.where as { OR?: Array<Record<string, unknown>> } | undefined;
     expect(where?.OR).toBeDefined();
@@ -185,6 +183,10 @@ describe('/api/admin/withdrawals [Wave 1] — list', () => {
 // ─── Wave 2 surfaces — Plan 03-06 implements PATCH cancel (SUPERADMIN-only) ───
 describe('/api/admin/withdrawals/[id]/cancel [Wave 2] — manual cancel', () => {
   it.todo('POST [id]/cancel by ADMIN returns 403 ADMIN_REQUIRED');
-  it.todo('POST [id]/cancel by SUPERADMIN succeeds + writes AdminAction with action="withdrawal.cancel"');
-  it.todo('withdrawal cancel uses pg_advisory_xact_lock(hashtext(userId)) inside the same Serializable tx');
+  it.todo(
+    'POST [id]/cancel by SUPERADMIN succeeds + writes AdminAction with action="withdrawal.cancel"',
+  );
+  it.todo(
+    'withdrawal cancel uses pg_advisory_xact_lock(hashtext(userId)) inside the same Serializable tx',
+  );
 });

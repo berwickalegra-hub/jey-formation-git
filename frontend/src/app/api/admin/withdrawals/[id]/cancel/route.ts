@@ -69,6 +69,15 @@ export async function POST(
     // Phase 1 — read owner OUTSIDE the lock. Required because
     // `lockUserTx` is keyed on userId (hashtext) and we need the value
     // before entering the locked tx region.
+    //
+    // WR-05 — assumption documented:
+    // The Phase 1 read (outside lock) is safe today because
+    // `Withdrawal.userId` is column-level immutable (the schema does not
+    // expose any "transfer between users" path; no DELETE route exists in
+    // v1 either). If a future migration adds withdrawal transfer between
+    // users (or hard-delete), move the userId fetch INSIDE the lock and
+    // re-acquire on the latest owner — otherwise two concurrent requests
+    // could lock against stale owners.
     const owner = await prisma.withdrawal.findUnique({
       where: { id },
       select: { userId: true },

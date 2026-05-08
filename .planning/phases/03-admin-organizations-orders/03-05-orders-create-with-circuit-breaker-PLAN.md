@@ -206,6 +206,7 @@ export function verifyCsrf(req: NextRequest): NextResponse | null;
   </action>
   <verify>
     <automated>test -f frontend/src/lib/server/payments/provider-singleton.ts &amp;&amp; pnpm typecheck</automated>
+    <decision_log>**No dedicated provider-singleton.test.ts.** Reviewer flagged Task 1's verify as thin (typecheck-only) and offered an optional unit test covering (a) singleton stability across calls, (b) PaymentProviderUnconfiguredError on missing env, (c) __resetProviderSingleton() clearing the cache. Decision: SKIP. Task 2's route tests in `orders/route.test.ts` exercise all three behaviours transitively — the "POST creates an Order" test calls `getProvider()` twice (once via the route, once for assertion mocking) verifying caching; the "POST without BICTORYS_API_KEY returns 503 PAYMENT_PROVIDER_UNCONFIGURED" test deletes the env var, calls `__resetProviderSingleton()`, and asserts the error path. A standalone test file would duplicate that coverage with no incremental safety. Re-evaluate if a third consumer of the singleton appears outside the orders route.</decision_log>
   </verify>
   <acceptance_criteria>
     - `frontend/src/lib/server/payments/provider-singleton.ts` exists

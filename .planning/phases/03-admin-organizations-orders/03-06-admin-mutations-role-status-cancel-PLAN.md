@@ -19,7 +19,7 @@ must_haves:
     - PATCH /api/admin/users/[id]/status restore (SUSPENDED → ACTIVE) by ADMIN → 403 RESTORE_REQUIRES_SUPERADMIN
     - PATCH /api/admin/users/[id]/status restore by SUPERADMIN → 200 + AdminAction action='user.restore'
     - POST /api/admin/withdrawals/[id]/cancel by ADMIN → 403 ADMIN_REQUIRED
-    - POST /api/admin/withdrawals/[id]/cancel by SUPERADMIN on PENDING/PROCESSING withdrawal → 200 + status=CANCELLED + AdminAction action='withdrawal.cancel'
+    - POST /api/admin/withdrawals/[id]/cancel by SUPERADMIN on PENDING/PROCESSING withdrawal → 200 + status=CANCELLED + AdminAction action='withdrawal.cancel' (cancel runs inside a Serializable tx that acquires `lockUserTx(tx, w.userId)` as its first statement — CLAUDE.md "Withdrawals are race-free" invariant)
     - POST /api/admin/withdrawals/[id]/cancel on already-COMPLETED/FAILED/CANCELLED → 409 WITHDRAWAL_NOT_CANCELLABLE
     - All three routes export `runtime = 'nodejs'`, call `verifyCsrf` BEFORE auth, wrap in withRequestContext, write AdminAction inside the same Prisma transaction as the mutation
   artifacts:
@@ -45,6 +45,10 @@ must_haves:
       to: 'CANCELLABLE_STATUSES'
       via: 'PENDING|PROCESSING' allowed; otherwise 409
       pattern: 'WITHDRAWAL_NOT_CANCELLABLE'
+    - from: frontend/src/app/api/admin/withdrawals/[id]/cancel/route.ts
+      to: frontend/src/lib/server/withdrawals/lock.ts
+      via: lockUserTx(tx, w.userId) — first statement inside Serializable tx; serializes with POST /api/withdrawals on same userId
+      pattern: 'lockUserTx'
 ---
 
 <objective>
@@ -275,17 +279,21 @@ AdminAction.metadata shapes per RESEARCH.md "AdminAction metadata shapes" table 
     - frontend/src/app/api/admin/withdrawals/route.test.ts (Wave 0 RED scaffolding — cancel tests)
     - frontend/src/app/api/admin/users/[id]/role/route.ts (Task 1 reference — same shape)
     - frontend/prisma/schema.prisma — Withdrawal model (note: status enum values are PENDING|PROCESSING|COMPLETED|FAILED|CANCELLED)
+    - frontend/src/lib/server/withdrawals/lock.ts — PROTECTED helper. Read to confirm exact export: `export async function lockUserTx(tx: TxClient, userId: string): Promise<void>`. Call it as the FIRST statement inside the cancel transaction, passing `w.userId` (the withdrawal's owner — NOT the admin actor's id). This serializes admin cancels with the user's own POST /api/withdrawals attempts on the same userId, preventing read-modify-write races against balance/status. Per CLAUDE.md "Withdrawals are race-free" invariant.
     - .planning/phases/03-admin-organizations-orders/03-RESEARCH.md "Endpoint Inventory" §3b + D-ADMIN-01
   </read_first>
   <behavior>
     - POST `/api/admin/withdrawals/[id]/cancel` body `{ reason: string }` (required, 1..500 chars). SUPERADMIN-only.
     - Cancellable statuses: `PENDING`, `PROCESSING`. Other statuses (COMPLETED/FAILED/CANCELLED) → 409 WITHDRAWAL_NOT_CANCELLABLE.
-    - Inside `prisma.$transaction`:
-      1. Find withdrawal
-      2. If missing → NOT_FOUND
-      3. If `!['PENDING', 'PROCESSING'].includes(w.status)` → NOT_CANCELLABLE
-      4. Update `status='CANCELLED'`, `failureReason=<the cancel reason>`, `processedAt=now()`, `completedAt=now()`
-      5. logAdminAction with `action='withdrawal.cancel', targetType='Withdrawal', targetId=id, metadata={ withdrawalId: id, amount, currency, reason, previousStatus }`
+    - **Race-free pattern (CLAUDE.md "Withdrawals are race-free" invariant):** Run inside `prisma.$transaction(async (tx) => …, { isolationLevel: 'Serializable' })`. The FIRST statement inside the tx MUST be `await lockUserTx(tx, w.userId)` after a preliminary lookup of the withdrawal owner — see action block for the two-phase lookup. This ensures admin cancel attempts serialize with concurrent user-initiated withdrawal mutations on the same userId, exactly as POST /api/withdrawals already does.
+    - Inside the locked transaction:
+      1. Lookup withdrawal owner (`userId`) via a preliminary read (outside the lock if possible, or refetch inside) — needed to compute the lock key
+      2. `await lockUserTx(tx, w.userId)` — acquire pg_advisory_xact_lock
+      3. Re-fetch the withdrawal inside the lock (status may have changed while waiting)
+      4. If missing → NOT_FOUND
+      5. If `!['PENDING', 'PROCESSING'].includes(w.status)` → NOT_CANCELLABLE
+      6. Update `status='CANCELLED'`, `failureReason=<the cancel reason>`, `processedAt=now()`, `completedAt=now()`
+      7. logAdminAction with `action='withdrawal.cancel', targetType='Withdrawal', targetId=id, metadata={ withdrawalId: id, amount, currency, reason, previousStatus }`
     - Map:
       - NOT_FOUND → 404 `{ error: 'WITHDRAWAL_NOT_FOUND' }`
       - NOT_CANCELLABLE → 409 `{ error: 'WITHDRAWAL_NOT_CANCELLABLE', message: 'Withdrawal is not in a cancellable state.' }`
@@ -299,6 +307,7 @@ AdminAction.metadata shapes per RESEARCH.md "AdminAction metadata shapes" table 
 
     import 'server-only';
     import { NextResponse, type NextRequest } from 'next/server';
+    import { Prisma } from '@prisma/client';
     import { z } from 'zod';
     import { verifyCsrf } from '@/lib/server/auth';
     import { requireSuperadmin } from '@/lib/server/middleware';
@@ -306,6 +315,7 @@ AdminAction.metadata shapes per RESEARCH.md "AdminAction metadata shapes" table 
     import { logAdminAction } from '@/lib/server/admin/audit';
     import { enforceAdminRateLimit } from '@/lib/server/middleware/rate-limit-by-userid';
     import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
+    import { lockUserTx } from '@/lib/server/withdrawals/lock';
 
     const Body = z.object({ reason: z.string().min(1).max(500) });
     const CANCELLABLE = new Set(['PENDING', 'PROCESSING']);
@@ -331,38 +341,58 @@ AdminAction.metadata shapes per RESEARCH.md "AdminAction metadata shapes" table 
           return NextResponse.json({ error: 'VALIDATION_FAILED', message: 'Invalid request body' }, { status: 400 });
         }
 
-        const result = await prisma.$transaction(async (tx) => {
-          const w = await tx.withdrawal.findUnique({ where: { id } });
-          if (!w) return { kind: 'NOT_FOUND' as const };
-          if (!CANCELLABLE.has(w.status)) return { kind: 'NOT_CANCELLABLE' as const };
-
-          const now = new Date();
-          const updated = await tx.withdrawal.update({
-            where: { id },
-            data: {
-              status: 'CANCELLED',
-              failureReason: parsed.data.reason,
-              processedAt: w.processedAt ?? now,
-              completedAt: now,
-            },
-          });
-
-          await logAdminAction(tx, {
-            actorId: auth.admin.id,
-            action: 'withdrawal.cancel',
-            targetType: 'Withdrawal',
-            targetId: id,
-            metadata: {
-              withdrawalId: id,
-              amount: w.amount,
-              currency: w.currency,
-              reason: parsed.data.reason,
-              previousStatus: w.status,
-            },
-          });
-
-          return { kind: 'OK' as const, withdrawal: updated };
+        // Two-phase lookup: read owner outside the lock, then re-read inside.
+        // The advisory lock is keyed on userId (hashtext), so we need the userId
+        // before entering the locked region.
+        const owner = await prisma.withdrawal.findUnique({
+          where: { id },
+          select: { userId: true },
         });
+        if (!owner) {
+          return NextResponse.json({ error: 'WITHDRAWAL_NOT_FOUND' }, { status: 404 });
+        }
+
+        const result = await prisma.$transaction(
+          async (tx) => {
+            // FIRST statement inside the tx — pg_advisory_xact_lock(hashtext(userId)).
+            // Held until commit/rollback. Serializes with POST /api/withdrawals
+            // for the same user. Use the withdrawal's OWNER, not the admin actor.
+            await lockUserTx(tx, owner.userId);
+
+            // Re-fetch under the lock — status may have changed while we waited.
+            const w = await tx.withdrawal.findUnique({ where: { id } });
+            if (!w) return { kind: 'NOT_FOUND' as const };
+            if (!CANCELLABLE.has(w.status)) return { kind: 'NOT_CANCELLABLE' as const };
+
+            const now = new Date();
+            const updated = await tx.withdrawal.update({
+              where: { id },
+              data: {
+                status: 'CANCELLED',
+                failureReason: parsed.data.reason,
+                processedAt: w.processedAt ?? now,
+                completedAt: now,
+              },
+            });
+
+            await logAdminAction(tx, {
+              actorId: auth.admin.id,
+              action: 'withdrawal.cancel',
+              targetType: 'Withdrawal',
+              targetId: id,
+              metadata: {
+                withdrawalId: id,
+                amount: w.amount,
+                currency: w.currency,
+                reason: parsed.data.reason,
+                previousStatus: w.status,
+              },
+            });
+
+            return { kind: 'OK' as const, withdrawal: updated };
+          },
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
 
         if (result.kind === 'NOT_FOUND') {
           return NextResponse.json({ error: 'WITHDRAWAL_NOT_FOUND' }, { status: 404 });
@@ -395,6 +425,9 @@ AdminAction.metadata shapes per RESEARCH.md "AdminAction metadata shapes" table 
     - `grep -c "withdrawal.cancel" frontend/src/app/api/admin/withdrawals/[id]/cancel/route.ts` returns 1
     - `grep -c "WITHDRAWAL_NOT_CANCELLABLE" frontend/src/app/api/admin/withdrawals/[id]/cancel/route.ts` returns 1
     - `grep -c "logAdminAction" frontend/src/app/api/admin/withdrawals/[id]/cancel/route.ts` returns 1
+    - `grep -c "withdrawals/lock" frontend/src/app/api/admin/withdrawals/[id]/cancel/route.ts` returns 1 (proves the advisory-lock helper is imported — CLAUDE.md "Withdrawals are race-free" invariant)
+    - `grep -c "lockUserTx" frontend/src/app/api/admin/withdrawals/[id]/cancel/route.ts` returns ≥2 (import + call site)
+    - `grep -c "Serializable" frontend/src/app/api/admin/withdrawals/[id]/cancel/route.ts` returns 1
     - `pnpm --filter frontend exec vitest run src/app/api/admin/withdrawals/route.test.ts` exits 0 (BOTH list AND cancel tests now green)
   </acceptance_criteria>
   <done>Withdrawal-cancel endpoint implemented; ALL withdrawal route tests now green.</done>
@@ -423,6 +456,7 @@ AdminAction.metadata shapes per RESEARCH.md "AdminAction metadata shapes" table 
 | T-03-06-07 | Repudiation (financial) | Withdrawal cancel reason left blank | mitigate | Zod requires `reason: z.string().min(1).max(500)`. Verification: grep `min(1)` returns 1 in withdrawals/cancel/route.ts. |
 | T-03-06-08 | Tampering (idempotent suspend) | Repeated PATCH status with same value pollutes audit log | mitigate | Idempotent no-op short-circuits BEFORE writing AdminAction (verified in Task 2 action block: `if (target.status === parsed.data.status) return OK without logAdminAction`). |
 | T-03-06-09 | Information Disclosure | last-SUPERADMIN guard reveals SUPERADMIN count | accept | Error message says "last SUPERADMIN" — confirms there is exactly one. This is acceptable; the error is only returned to authenticated SUPERADMINs, who can already query the count. |
+| T-03-06-10 | Tampering (financial race) | Admin cancel interleaves with concurrent user-initiated withdrawal mutation on same userId, producing inconsistent balance/status | mitigate | Cancel runs inside `prisma.$transaction(..., { isolationLevel: Serializable })` whose FIRST statement is `await lockUserTx(tx, w.userId)`. Same advisory-lock pattern POST /api/withdrawals uses (CLAUDE.md "Withdrawals are race-free"). Verification: grep `lockUserTx` returns ≥2 in cancel/route.ts AND grep `Serializable` returns 1. |
 </threat_model>
 
 <verification>

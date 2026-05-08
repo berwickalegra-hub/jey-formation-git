@@ -42,6 +42,7 @@ describe('POST /api/webhooks/bictorys', () => {
   it('valid HMAC + first delivery returns 200 deduped:false (WH-01)', async () => {
     findUnique.mockResolvedValueOnce(null); // no existing WebhookLog row
     orderFindFirst.mockResolvedValueOnce(null); // unknown charge — onPaid drops
+    // @ts-expect-error -- route module ships in Wave 1 (plan 05-02); RED-by-design until then
     const { POST } = await import('./route');
     const { req } = bictorysFixtureRequest({ status: 'succeeded' });
     const res = await POST(req);
@@ -52,6 +53,7 @@ describe('POST /api/webhooks/bictorys', () => {
 
   it('replay of same (externalId, eventType) returns deduped:true (WH-02)', async () => {
     findUnique.mockResolvedValueOnce({ id: 'wl1', processedAt: new Date() });
+    // @ts-expect-error -- route module ships in Wave 1 (plan 05-02); RED-by-design until then
     const { POST } = await import('./route');
     const { req } = bictorysFixtureRequest({ status: 'succeeded' });
     const res = await POST(req);
@@ -65,6 +67,7 @@ describe('POST /api/webhooks/bictorys', () => {
       status: 'succeeded',
     });
     const tampered = Buffer.from(rawBody.toString('utf8').replace('succeeded', 'failed'));
+    // @ts-expect-error -- route module ships in Wave 1 (plan 05-02); RED-by-design until then
     const { POST } = await import('./route');
     const { NextRequest } = await import('next/server');
     const req = new NextRequest('http://localhost/api/webhooks/bictorys', {
@@ -77,6 +80,7 @@ describe('POST /api/webhooks/bictorys', () => {
   });
 
   it('expired replay window (drift > 60s) returns 401', async () => {
+    // @ts-expect-error -- route module ships in Wave 1 (plan 05-02); RED-by-design until then
     const { POST } = await import('./route');
     const { req } = bictorysFixtureRequest({
       status: 'succeeded',
@@ -96,6 +100,7 @@ describe('POST /api/webhooks/bictorys', () => {
       currency: 'XOF',
     });
     outboxCreate.mockResolvedValue({ id: 'ob1' });
+    // @ts-expect-error -- route module ships in Wave 1 (plan 05-02); RED-by-design until then
     const { POST } = await import('./route');
     const { req } = bictorysFixtureRequest({ status: 'succeeded' });
     await POST(req);
@@ -112,6 +117,7 @@ describe('POST /api/webhooks/bictorys', () => {
   });
 
   it('exports runtime=nodejs and dynamic=force-dynamic (WH-01)', async () => {
+    // @ts-expect-error -- route module ships in Wave 1 (plan 05-02); RED-by-design until then
     const mod = (await import('./route')) as { runtime?: string; dynamic?: string };
     expect(mod.runtime).toBe('nodejs');
     expect(mod.dynamic).toBe('force-dynamic');

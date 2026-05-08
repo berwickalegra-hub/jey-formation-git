@@ -62,11 +62,15 @@ export function bictorysFixtureRequest(opts: BictorysFixtureOpts = {}): {
   payload: BictorysWebhookPayload;
 } {
   const { rawBody, headers, payload } = bictorysFixture(opts);
+  // Buffer is a Uint8Array subclass at runtime but TS' BodyInit type rejects
+  // both. Cast to BodyInit — the bytes are byte-identical to what fetch
+  // would send and the underlying NextRequest accepts ArrayBufferView.
+  const body = rawBody as unknown as BodyInit;
   return {
     req: new NextRequest('http://localhost/api/webhooks/bictorys', {
       method: 'POST',
       headers,
-      body: rawBody,
+      body,
     }),
     payload,
   };

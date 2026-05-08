@@ -38,6 +38,7 @@ describe('POST /api/cron/email-queue-drain (CRON-02, CRON-06)', () => {
     (verifyCronSecret as Mock).mockReturnValueOnce(
       NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 }),
     );
+    // @ts-expect-error -- route ships in Wave 1 (plan 05-04); RED-by-design until then
     const { POST } = await import('./route');
     const res = await POST(makeReq('email-queue-drain'));
     expect(res.status).toBe(401);
@@ -45,6 +46,7 @@ describe('POST /api/cron/email-queue-drain (CRON-02, CRON-06)', () => {
 
   it('drains up to BATCH_SIZE=100 jobs', async () => {
     drainOne.mockResolvedValue(true);
+    // @ts-expect-error -- route ships in Wave 1 (plan 05-04); RED-by-design until then
     const { POST } = await import('./route');
     const res = await POST(makeReq('email-queue-drain'));
     expect(res.status).toBe(200);
@@ -54,6 +56,7 @@ describe('POST /api/cron/email-queue-drain (CRON-02, CRON-06)', () => {
 
   it('stops early when drainOne returns false (queue empty)', async () => {
     drainOne.mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    // @ts-expect-error -- route ships in Wave 1 (plan 05-04); RED-by-design until then
     const { POST } = await import('./route');
     const res = await POST(makeReq('email-queue-drain'));
     expect(drainOne).toHaveBeenCalledTimes(3);
@@ -62,6 +65,7 @@ describe('POST /api/cron/email-queue-drain (CRON-02, CRON-06)', () => {
 
   it('returns processed=0 when getEmailQueue returns null', async () => {
     getEmailQueueMock.mockReturnValueOnce(null);
+    // @ts-expect-error -- route ships in Wave 1 (plan 05-04); RED-by-design until then
     const { POST } = await import('./route');
     const res = await POST(makeReq('email-queue-drain'));
     expect(res.status).toBe(200);

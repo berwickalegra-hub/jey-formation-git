@@ -35,6 +35,7 @@ describe('POST /api/cron/webhook-log-purge (CRON-05, CRON-06)', () => {
     (verifyCronSecret as Mock).mockReturnValueOnce(
       NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 }),
     );
+    // @ts-expect-error -- route ships in Wave 1 (plan 05-07); RED-by-design until then
     const { POST } = await import('./route');
     const res = await POST(makeReq('webhook-log-purge'));
     expect(res.status).toBe(401);
@@ -43,6 +44,7 @@ describe('POST /api/cron/webhook-log-purge (CRON-05, CRON-06)', () => {
   it('deletes webhook logs older than retention (CRON-05)', async () => {
     deleteMany.mockResolvedValueOnce({ count: 4 });
     vi.stubEnv('WEBHOOK_LOG_RETENTION_DAYS', '30');
+    // @ts-expect-error -- route ships in Wave 1 (plan 05-07); RED-by-design until then
     const { POST } = await import('./route');
     const res = await POST(makeReq('webhook-log-purge'));
     expect(res.status).toBe(200);
@@ -57,6 +59,7 @@ describe('POST /api/cron/webhook-log-purge (CRON-05, CRON-06)', () => {
 
   it('uses default 90 days when WEBHOOK_LOG_RETENTION_DAYS unset', async () => {
     deleteMany.mockResolvedValueOnce({ count: 0 });
+    // @ts-expect-error -- route ships in Wave 1 (plan 05-07); RED-by-design until then
     const { POST } = await import('./route');
     await POST(makeReq('webhook-log-purge'));
     const where = (deleteMany.mock.calls[0]![0] as { where: { createdAt: { lt: Date } } }).where;

@@ -37,6 +37,7 @@ describe('POST /api/cron/order-expiration (CRON-04, CRON-06)', () => {
     (verifyCronSecret as Mock).mockReturnValueOnce(
       NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 }),
     );
+    // @ts-expect-error -- route ships in Wave 1 (plan 05-06); RED-by-design until then
     const { POST } = await import('./route');
     const res = await POST(makeReq('order-expiration'));
     expect(res.status).toBe(401);
@@ -44,6 +45,7 @@ describe('POST /api/cron/order-expiration (CRON-04, CRON-06)', () => {
 
   it('calls expirePendingOrders helper with prisma', async () => {
     expirePendingOrdersMock.mockResolvedValueOnce({ expired: 0 });
+    // @ts-expect-error -- route ships in Wave 1 (plan 05-06); RED-by-design until then
     const { POST } = await import('./route');
     await POST(makeReq('order-expiration'));
     expect(expirePendingOrdersMock).toHaveBeenCalled();
@@ -53,6 +55,7 @@ describe('POST /api/cron/order-expiration (CRON-04, CRON-06)', () => {
 
   it('returns processed count from helper (CRON-04)', async () => {
     expirePendingOrdersMock.mockResolvedValueOnce({ expired: 5 });
+    // @ts-expect-error -- route ships in Wave 1 (plan 05-06); RED-by-design until then
     const { POST } = await import('./route');
     const res = await POST(makeReq('order-expiration'));
     expect(res.status).toBe(200);

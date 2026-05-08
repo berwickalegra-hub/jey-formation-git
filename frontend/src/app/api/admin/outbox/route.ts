@@ -3,7 +3,7 @@
 // Threat T-03-04-04 (field-name confusion): the schema column is `kind`
 // (free-form dispatcher routing key, e.g. "notification.payment_received").
 // We standardise on `kind` everywhere — query param + response field both
-// named `kind`. Do NOT alias to `type` (RESEARCH.md Pitfall 4).
+// named `kind` (RESEARCH.md Pitfall 4).
 //
 // Pattern mirrors Plan 03-02's user-list route:
 //   requireAdmin('ADMIN') → enforceAdminRateLimit → parse filters →
@@ -17,16 +17,8 @@ import type { OutboxEvent, Prisma } from '@prisma/client';
 import { requireAdmin } from '@/lib/server/middleware';
 import { enforceAdminRateLimit } from '@/lib/server/middleware/rate-limit-by-userid';
 import { prisma } from '@/lib/server/prisma';
-import {
-  buildPage,
-  clampLimit,
-  cursorWhere,
-  decodeCursor,
-} from '@/lib/server/pagination/paginate';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { buildPage, clampLimit, cursorWhere, decodeCursor } from '@/lib/server/pagination/paginate';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 
 type OutboxStatus = 'PENDING' | 'SENT' | 'FAILED' | 'DEAD';
 const VALID_STATUSES = new Set<OutboxStatus>(['PENDING', 'SENT', 'FAILED', 'DEAD']);

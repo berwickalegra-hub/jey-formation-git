@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project is
 
-Bootstrapped from `amadou-template` and **ported to a Next.js 16 monolith**: a single full-stack app (App Router API Route Handlers + Server Actions + Prisma 7 + Neon + Upstash + R2 + Resend + Bictorys + Sentry). There is no separate Express backend anymore — server logic lives under `frontend/src/app/api/*` and `frontend/src/lib/server/*`. The app **ships only logic** — no UI components — so each fork designs its own UX.
+Bootstrapped from `amadou-template` and **ported to a Next.js 16 monolith**: a single full-stack app (App Router API Route Handlers + Server Actions + Prisma 5 + Neon + Upstash + R2 + Resend + Bictorys + Sentry). There is no separate Express backend anymore — server logic lives under `frontend/src/app/api/*` and `frontend/src/lib/server/*`. The app **ships only logic** — no UI components — so each fork designs its own UX.
 
 Read [README.md](README.md) for the broader contract (endpoints, models, env vars, extension patterns) and [STATUS.md](STATUS.md) for the live port roadmap. Reference pages live in [examples/frontend-pages/](examples/frontend-pages/) — including `admin/{layout,users,withdrawals}.tsx` and `auth-error.tsx` for the OAuth error page.
 

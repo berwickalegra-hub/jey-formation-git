@@ -51,7 +51,6 @@ Cloning this repo and filling in `.env` produces a working Next.js app on Vercel
 - [ ] **PAY-01**: Port `orders` route (Bictorys charge via `PaymentProvider` interface, single-instance circuit breaker)
 - [ ] **WD-01**: Port `withdrawals` (GET list + POST) using `pg_advisory_xact_lock(hashtext(userId))` inside Serializable tx — must reuse the existing `withdrawals/lock.ts` exactly, never re-implement
 - [ ] **ADMIN-01**: Port the 9 admin endpoints (users search/detail/role-change, orders filter, withdrawals filter + manual cancel, audit-log paginated, `/me`) — every mutation MUST call `logAdminAction`
-- [ ] **ORG-01**: Port the 8 organization endpoints (CRUD, member management, role changes, transactional owner promotion); non-members get **404, not 403**
 
 **Webhooks & background work (Vercel-native)**
 
@@ -74,6 +73,7 @@ Cloning this repo and filling in `.env` produces a working Next.js app on Vercel
 
 - **UI components / pages** — Headless by design. Every fork designs its own UX. Ship logic only.
 - **Multi-provider payments out of the box** — Bictorys stays the default. The `PaymentProvider` interface lets each project plug in Stripe / Paystack / etc., but the starter doesn't ship multiple adapters.
+- **Organization / multi-tenancy routes** *(deferred 2026-05-08)* — `Organization` + `OrganizationMember` Prisma models stay (already migrated, zero runtime cost) and `requireOrgRole` middleware is preserved as opt-in plumbing. The 8 `/api/organizations/*` route handlers are NOT shipped in v1. Forks that need multi-tenancy add `organizationId?` columns and route handlers per-project. Reasoning: starter scope target is solo/B2C SaaS by default; orgs add UX surface (invitations, transfer ownership, role mgmt) that most forks will never use.
 - **Long-running worker process** — Vercel-first decision. All background work runs as scheduled route handlers, not a separate Node worker. Self-host can still wire a worker later, but it's not the default.
 - **Auth.js / NextAuth migration** — Custom JWT + cookies + CSRF stay. We trust the template's auth surface and don't want to relearn invariants in a new framework.
 - **Migrating existing `amadou-template` forks to this monolith** — The two starters coexist. New projects pick per-project; no migration path is shipped.

@@ -13,7 +13,7 @@ Port `amadou-template` (Express 5 + Next.js 16 monorepo) into a single Next.js 1
 - [x] **Phase 0: Foundation** - Cross-cutting infrastructure fixes that must land before any route runs (completed 2026-05-07)
 - [ ] **Phase 1: Auth Routes** - 9 auth endpoints + rate-limiting + enumeration resistance
 - [ ] **Phase 2: OAuth, Notifications, Withdrawal PIN** - Google OAuth, notification CRUD, PIN management
-- [ ] **Phase 3: Admin, Organizations, Orders** - Back-office endpoints, multi-tenancy, payment orders
+- [ ] **Phase 3: Admin, Orders, Visibility** - Back-office endpoints, payment orders, outbox/email-queue/rate-limits visibility
 - [ ] **Phase 4: Upload, Files, Withdrawals** - File handling, R2 proxy, financial-critical withdrawal flow
 - [ ] **Phase 5: Webhooks and Vercel Cron** - Bictorys webhook handler, 5 cron route handlers, vercel.json
 - [ ] **Phase 6: Tests, Scripts, Docker, Docs** - Vitest suite, helper scripts, Docker, rewritten CLAUDE.md + README.md
@@ -66,18 +66,18 @@ Port `amadou-template` (Express 5 + Next.js 16 monorepo) into a single Next.js 1
   4. `POST /api/auth/withdrawal-pin` sets a hashed PIN; `DELETE /api/auth/withdrawal-pin` removes it; calling `POST /api/auth/withdrawal-pin` again (change) succeeds; all three require auth + CSRF
 **Plans**: TBD
 
-### Phase 3: Admin, Organizations, Orders
-**Goal**: Admins can operate the back-office (users, orders, withdrawals, audit log, outbox/email-queue visibility), organizations are manageable with role-gated access, and users can initiate payment orders
+### Phase 3: Admin, Orders, Visibility
+**Goal**: Admins can operate the back-office (users, orders, withdrawals, audit log, outbox/email-queue/rate-limits visibility) and users can initiate payment orders. Multi-tenancy (Organizations) is deferred — kept as opt-in plumbing only (Prisma models + middleware retained, no routes shipped).
 **Depends on**: Phase 1
-**Requirements**: ADMIN-01, ADMIN-02, ADMIN-03, ADMIN-04, ADMIN-05, ADMIN-06, ADMIN-07, ORG-01, ORG-02, ORG-03, ORG-04, ORG-05, ORG-06, PAY-01, OBS-01, OBS-02, OBS-03
+**Requirements**: ADMIN-01, ADMIN-02, ADMIN-03, ADMIN-04, ADMIN-05, ADMIN-06, ADMIN-07, PAY-01, OBS-01, OBS-02, OBS-03
 **Success Criteria** (what must be TRUE):
   1. `GET /api/admin/users?q=test` returns paginated results; `PATCH /api/admin/users/:id/role` by a SUPERADMIN changes the role and writes an `AdminAction` row; attempting the same as `ADMIN` returns 403; attempting to demote the last SUPERADMIN returns 409
   2. `GET /api/admin/outbox` and `GET /api/admin/email-queue` return filterable lists of OutboxEvent and EmailJob rows respectively (may be empty before Phase 5 data exists — that is expected); `GET /api/admin/rate-limits` returns current hit counters from Redis
-  3. Non-member request to any `/api/organizations/:id/*` route returns 404 (not 403); OWNER can add a member and promote them to ADMIN; owner promotion runs as a single 3-op transaction (old owner demoted, new owner promoted, audit row written)
-  4. `POST /api/orders` with a valid amount (integer, smallest currency unit) creates an Order via the Bictorys `PaymentProvider` interface and returns the payment URL; circuit breaker trips after configured failure threshold and returns 503 with `PAYMENT_PROVIDER_UNAVAILABLE`
-  5. `pnpm db:make-superadmin test@example.com` promotes the user and exits 0; running it against a non-existent email exits non-zero with a clear message
+  3. `POST /api/orders` with a valid amount (integer, smallest currency unit) creates an Order via the Bictorys `PaymentProvider` interface and returns the payment URL; circuit breaker trips after configured failure threshold and returns 503 with `PAYMENT_PROVIDER_UNAVAILABLE`
+  4. `pnpm db:make-superadmin test@example.com` promotes the user and exits 0; running it against a non-existent email exits non-zero with a clear message
 **Plans**: TBD
 **UI hint**: no
+**Out of scope (deferred)**: ORG-01..06 (Organizations routes) — kept as opt-in plumbing per CLAUDE.md "Multi-tenancy is opt-in"
 
 ### Phase 4: Upload, Files, Withdrawals
 **Goal**: Users can upload files (magic-byte validated, R2-stored or DB-fallback), retrieve them via proxy, and request withdrawals with race-free balance enforcement

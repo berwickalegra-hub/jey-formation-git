@@ -228,6 +228,25 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       throw err;
     }
 
+    // 6b. WR-06 — fail closed when PUBLIC_URL is unset in production.
+    // The success/failure URLs handed to the payment provider are baked
+    // into the hosted checkout; a forgotten PUBLIC_URL env var in prod
+    // means real charges redirect users to http://localhost:3000 after
+    // payment. Surface this as the same 503 PAYMENT_PROVIDER_UNCONFIGURED
+    // disposition (boot-time misconfig). In dev/test we keep the
+    // localhost fallback so local development still works.
+    const envPublicUrl = process.env.PUBLIC_URL;
+    if (!envPublicUrl && process.env.NODE_ENV === 'production') {
+      return NextResponse.json(
+        {
+          error: 'PAYMENT_PROVIDER_UNCONFIGURED',
+          message: 'PUBLIC_URL not set; cannot construct success/failure redirect URLs.',
+        },
+        { status: 503, headers: { 'x-request-id': ctx.requestId } },
+      );
+    }
+    const publicUrl = envPublicUrl ?? 'http://localhost:3000';
+
     // 7. Insert PENDING Order — gives us a stable id usable as externalRef
     // and the row that Pitfall 3's replay branch will read on retry.
     //
@@ -256,7 +275,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
 
     // 8. Wrap charge in CircuitBreaker (D-PAY-02)
-    const publicUrl = process.env.PUBLIC_URL ?? 'http://localhost:3000';
     try {
       const result = await breaker.execute(() =>
         provider.charge({

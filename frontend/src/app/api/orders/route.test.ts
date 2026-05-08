@@ -451,6 +451,50 @@ describe('POST /api/orders [Wave 1] — config guards', () => {
     expect(prismaMock.order.create).not.toHaveBeenCalled();
     expect(mockExecute).not.toHaveBeenCalled();
   });
+
+  // WR-06 — fail closed in production when PUBLIC_URL is unset, instead of
+  // silently issuing real charges with localhost redirect URLs.
+  it('POST in production with PUBLIC_URL unset → 503 PAYMENT_PROVIDER_UNCONFIGURED, no Order created', async () => {
+    prismaMock.order.findUnique.mockResolvedValue(null as never);
+    const prevNodeEnv = process.env.NODE_ENV;
+    delete process.env.PUBLIC_URL;
+    // node accepts read-only NODE_ENV; cast around the type.
+    (process.env as Record<string, string>).NODE_ENV = 'production';
+
+    try {
+      const res = await POST(
+        makePost({ amount: 1000, currency: 'XOF' }, { idempotencyKey: 'no-public-url-key' }),
+      );
+
+      expect(res.status).toBe(503);
+      const body = await res.json();
+      expect(body.error).toBe('PAYMENT_PROVIDER_UNCONFIGURED');
+      // No Order row inserted; we bailed before create().
+      expect(prismaMock.order.create).not.toHaveBeenCalled();
+      expect(mockExecute).not.toHaveBeenCalled();
+    } finally {
+      if (prevNodeEnv !== undefined) {
+        (process.env as Record<string, string>).NODE_ENV = prevNodeEnv;
+      } else {
+        delete (process.env as Record<string, string>).NODE_ENV;
+      }
+      // beforeEach restores PUBLIC_URL for the next test.
+    }
+  });
+
+  it('POST in dev with PUBLIC_URL unset → still uses localhost fallback (dev parity)', async () => {
+    prismaMock.order.findUnique.mockResolvedValue(null as never);
+    prismaMock.order.create.mockResolvedValue(seededOrder() as never);
+    prismaMock.order.update.mockResolvedValue(seededOrder() as never);
+    delete process.env.PUBLIC_URL;
+    // NODE_ENV stays 'test' (vitest default); the route's localhost fallback applies.
+
+    const res = await POST(
+      makePost({ amount: 1000, currency: 'XOF' }, { idempotencyKey: 'dev-fallback-key' }),
+    );
+
+    expect(res.status).toBe(201);
+  });
 });
 
 describe('POST /api/orders [Wave 1] — validation', () => {

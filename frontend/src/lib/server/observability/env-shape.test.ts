@@ -48,3 +48,38 @@ describe('.env.example shape (OPS-01, OPS-04)', () => {
     expect(src.toLowerCase()).toContain('migrate deploy');
   });
 });
+
+// ───────────────────────────────────────────────────────────────────────
+// Phase 4 — UPLOAD + R2 + WITHDRAWAL safety knobs.
+//
+// These assertions are tripwires: refactors that "tidy up" .env.example by
+// stripping the FINANCIAL-SAFETY warning block, the verbatim defaults, or
+// the optional R2_ENDPOINT line will fail CI here. The wording is the
+// product — the test quotes it character-for-character.
+// ───────────────────────────────────────────────────────────────────────
+describe('.env.example phase 4 additions (UP-01, UP-02, WD-01..04)', () => {
+  const src = readFileSync(ENV_EXAMPLE, 'utf8');
+
+  it(`contains the verbatim WITHDRAWAL_BALANCE_CHECK FINANCIAL-SAFETY warning (file: ${ENV_EXAMPLE})`, () => {
+    expect(src).toContain('⚠️  FINANCIAL-SAFETY WARNING — DO NOT CASUALLY DISABLE  ⚠️');
+    expect(src).toContain('WITHDRAWAL_BALANCE_CHECK="1"');
+  });
+
+  it('declares the upload allow-list and max-bytes defaults', () => {
+    expect(src).toContain('UPLOAD_ALLOWED_MIME="image/jpeg,image/png,image/webp"');
+    expect(src).toContain('UPLOAD_MAX_BYTES="10485760"');
+  });
+
+  it('declares R2_* keys with empty defaults + optional R2_ENDPOINT override', () => {
+    expect(src).toMatch(/^R2_ACCOUNT_ID=""$/m);
+    expect(src).toMatch(/^R2_BUCKET=""$/m);
+    expect(src).toMatch(/^R2_ACCESS_KEY_ID=""$/m);
+    expect(src).toMatch(/^R2_SECRET_ACCESS_KEY=""$/m);
+    expect(src).toContain('R2_ENDPOINT=""');
+  });
+
+  it('declares production-safe withdrawal-policy defaults', () => {
+    expect(src).toContain('WITHDRAWAL_MIN_AMOUNT="1000"');
+    expect(src).toContain('WITHDRAWAL_REQUIRE_PIN="1"');
+  });
+});

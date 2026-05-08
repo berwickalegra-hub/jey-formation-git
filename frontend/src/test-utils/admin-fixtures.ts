@@ -14,7 +14,8 @@
 // returns the same shape every time so tests can assert exact rows.
 // Tests that need uniqueness override fields explicitly.
 import { vi } from 'vitest';
-import type { User, Order, OutboxEvent, EmailJob, Prisma } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+import type { User, Order, OutboxEvent, EmailJob, Withdrawal, Prisma } from '@prisma/client';
 import type { PaymentProvider, ChargeResult } from '@/lib/server/payments/provider';
 
 const FROZEN_NOW = new Date('2026-05-08T12:00:00.000Z');
@@ -280,4 +281,84 @@ export function mockBictorysProvider(
     name: 'bictorys',
     charge,
   };
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Phase 4 Plan 04-01 — withdrawal + PIN fixtures
+//
+// `seedActiveUserWithPin` is a sync factory (returns a User row whose
+// `withdrawalPinHash` is a real bcrypt hash). It awaits `bcrypt.hash`
+// at cost 4 — deliberate test-speed knob (production PINs use cost 12
+// per `auth/pin.ts`). Per CLAUDE.md threat model: this helper is
+// adjacent to `import 'server-only'` modules and never imported by
+// production routes — the risk of a cheap-cost hash escaping is bounded.
+//
+// `seedWithdrawal` is a pure factory (matches the rest of this file's
+// shape — `seedOrder`, `seedOutbox`, etc.). Tests wire its output into
+// `prismaMock.withdrawal.findMany.mockResolvedValue([...])`. This is
+// intentional: the unit-test layer uses `vitest-mock-extended`'s
+// `mockDeep<PrismaClient>()` (D-25) — no real DB calls in unit tests.
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * Returns an active User with a real bcrypt-hashed `withdrawalPinHash`.
+ * The hash is at cost 4 (vs production cost 12) so test runs stay fast.
+ *
+ * Tests calling `verifyPin(plainPin, user.withdrawalPinHash)` will get
+ * `true` for the supplied `plainPin`, `false` for any other input —
+ * exercising the real bcrypt path without the production cost.
+ */
+export async function seedActiveUserWithPin(
+  plainPin: string,
+  overrides: UserOverrides = {},
+): Promise<User> {
+  const withdrawalPinHash = await bcrypt.hash(plainPin, 4);
+  // buildUser doesn't accept withdrawalPinHash via overrides today, so
+  // build the row first then patch the field. Preserves the `as User`
+  // type assertion that the rest of the file uses.
+  const base = buildUser(overrides);
+  return { ...base, withdrawalPinHash } as User;
+}
+
+interface WithdrawalOverrides {
+  id?: string;
+  userId?: string;
+  amount?: number;
+  currency?: string;
+  status?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+  destination?: Prisma.JsonValue;
+  provider?: string;
+  providerPayoutId?: string | null;
+  failureReason?: string | null;
+  requestedAt?: Date;
+  processedAt?: Date | null;
+  completedAt?: Date | null;
+}
+
+/**
+ * Pure factory — returns a fully shaped Withdrawal row. Defaults match
+ * the most common happy-path test scenario: PENDING, 1000 XOF, WAVE
+ * destination with a placeholder Senegalese phone number.
+ *
+ * Tests typically wire this into `prismaMock.withdrawal.findMany` /
+ * `prismaMock.withdrawal.create.mockResolvedValue(seedWithdrawal({...}))`.
+ */
+export function seedWithdrawal(overrides: WithdrawalOverrides = {}): Withdrawal {
+  return {
+    id: overrides.id ?? `withdrawal_${Math.random().toString(36).slice(2, 10)}`,
+    userId: overrides.userId ?? 'user_seed_1',
+    amount: overrides.amount ?? 1000,
+    currency: overrides.currency ?? 'XOF',
+    status: overrides.status ?? 'PENDING',
+    destination: (overrides.destination ?? {
+      method: 'WAVE',
+      phone: '+221770000001',
+    }) as Prisma.JsonValue,
+    provider: overrides.provider ?? 'bictorys',
+    providerPayoutId: overrides.providerPayoutId ?? null,
+    failureReason: overrides.failureReason ?? null,
+    requestedAt: overrides.requestedAt ?? FROZEN_NOW,
+    processedAt: overrides.processedAt ?? null,
+    completedAt: overrides.completedAt ?? null,
+  } as Withdrawal;
 }

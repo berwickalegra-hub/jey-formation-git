@@ -49,6 +49,14 @@ Cloning this repo and filling in `.env` produces a working Next.js app on Vercel
 - ✓ **WD-01..04**: `POST /api/withdrawals` (advisory-lock + Serializable tx, CF-12 — `lockUserTx(tx, userId)` is FIRST awaited statement inside `prisma.$transaction(fn, { isolationLevel: Serializable })`) and `GET /api/withdrawals` (cursor-paginated own list on `requestedAt`) at `frontend/src/app/api/withdrawals/route.ts`. 8 stable guard codes (`AMOUNT_BELOW_MIN`, `AMOUNT_ABOVE_MAX`, `DAILY_LIMIT_EXCEEDED`, `COOLDOWN_ACTIVE`, `PIN_NOT_SET`, `PIN_REQUIRED`, `PIN_INVALID`, `INSUFFICIENT_BALANCE`). Post-commit notification via `createNotification` with `dedupeKey: withdrawal-requested:${id}` (Pitfall 4 — never poisons response). `WITHDRAWAL_BALANCE_CHECK=0` documented in `.env.example` with FINANCIAL-SAFETY warning. P2034 → 409 `TRANSIENT_CONFLICT`. **452/452 full-repo tests green** at phase close.
 - ⏳ **3 human-UAT items deferred** in 04-VERIFICATION.md (live R2 PUT smoke, concurrent Postgres POSTs against real DB, MinIO path-style override)
 
+#### Validated in Phase 5 (Webhooks and Vercel Cron, 2026-05-08)
+
+- ✓ **WH-01, WH-02**: `POST /api/webhooks/bictorys` shipped at `frontend/src/app/api/webhooks/bictorys/route.ts` — thin adapter delegating to the protected `createWebhookHandler({...})` factory (raw body via `req.arrayBuffer()`, Serializable tx, dedup on `WebhookLog @@unique([externalId, eventType])`); Bictorys `WebhookProvider` impl re-exported via `lib/server/webhook/bictorys.ts` (HMAC-SHA256 + 60s replay window from `BICTORYS_WEBHOOK_REPLAY_WINDOW_MS`). Side-effects emit via `enqueueOutbox(tx, event)` inside the same tx (D-04 — never `postCommit` closures). Replay returns `{ok:true, deduped:true}`; tampered body → 401.
+- ✓ **CRON-01..05**: All 5 cron route handlers shipped at `frontend/src/app/api/cron/<name>/route.ts` — `outbox-drain`, `email-queue-drain`, `verification-cleanup`, `order-expiration`, `webhook-log-purge`. Each is a thin shim wrapped in `withLease(redis ?? undefined, name, ttlMs, fn)` for multi-instance coordination; calls battle-tested `drainOutbox` / `EmailQueue.drainOne` / `prisma.<table>.deleteMany` / `expirePendingOrders`. Drainers process up to **100 rows per invocation** (D-08 — hard-coded BATCH_SIZE), with 90s stuck-row PROCESSING reset BEFORE the drain (D-09; uses `OutboxEvent.scheduledAt` per Pitfall 7). Order-expiration helper at `lib/server/orders/expire.ts` reads `Order.expiresAt` directly (env `ORDER_EXPIRATION_MINUTES` is doc-only, consumed by the order-creation route per fork).
+- ✓ **CRON-06**: `verifyCronSecret(req)` at `lib/server/cron/auth.ts` — `crypto.timingSafeEqual` with explicit length-mismatch fast-path; fail-closed 500 when `CRON_SECRET` env missing; modeled on `verifyCsrf` shape (`null | NextResponse`). Called as the FIRST statement in every cron route.
+- ✓ **CRON-07**: `frontend/vercel.json` declares all 5 cron schedules verbatim per D-12 (`*/1 * * * *` × 2, `0 * * * *`, `*/5 * * * *`, `0 0 * * *`); per-route `maxDuration` lives in each `route.ts` (60s for drainers, 30s for the others). Tripwire test at `lib/server/observability/vercel-json-shape.test.ts` cross-checks every schedule path against an existing `route.ts` file. **508/508 full-repo tests green** at phase close.
+- ⏳ **3 human-UAT items deferred** in 05-VERIFICATION.md (Vercel dashboard ingests vercel.json at deploy; end-to-end Bictorys sandbox webhook with HMAC + replay + tampering; manual `curl` of all 5 cron routes against deployed app)
+
 ### Active
 
 <!-- Remaining port surface (M3–M8 per STATUS.md) plus monolith-specific work. Each is a hypothesis until shipped. -->
@@ -56,12 +64,6 @@ Cloning this repo and filling in `.env` produces a working Next.js app on Vercel
 **Domain routes**
 - [ ] **PAY-01**: Port `orders` route (Bictorys charge via `PaymentProvider` interface, single-instance circuit breaker)
 - [ ] **ADMIN-01**: Port the 9 admin endpoints (users search/detail/role-change, orders filter, withdrawals filter + manual cancel, audit-log paginated, `/me`) — every mutation MUST call `logAdminAction`
-
-**Webhooks & background work (Vercel-native)**
-
-- [ ] **WH-01**: Port `webhooks/bictorys` route via `createWebhookHandler({...})` — must NOT call `req.json()` before HMAC; preserves byte-identical raw body via `req.arrayBuffer()`
-- [ ] **CRON-01**: Convert all 5 `setInterval` cron loops to `/api/cron/*` route handlers gated by `Authorization: Bearer ${CRON_SECRET}` — `outbox-drain` (1 min), `email-queue-drain` (1 min), `verification-cleanup` (hourly), `order-expiration` (5 min), `webhook-log-purge` (daily). Drain 100 rows per invocation since fire interval widens from 5s to ~60s.
-- [ ] **CRON-02**: Add `vercel.json` with cron schedule entries matching CRON-01
 
 **Tooling, tests, distribution**
 
@@ -148,4 +150,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-08 after Phase 4 (Upload, Files, Withdrawals) completion*
+*Last updated: 2026-05-08 after Phase 5 (Webhooks and Vercel Cron) completion*

@@ -1,46 +1,92 @@
 // Bootstrap script. Promotes a user to SUPERADMIN by email.
 // Usage: pnpm db:make-superadmin <email>
 //
-// Idempotent — running it twice is a no-op for an existing SUPERADMIN.
-// The role hierarchy is USER < ADMIN < SUPERADMIN; only SUPERADMINs can
-// promote others via the admin back-office, so this script exists to
-// bootstrap the very first one.
+// ADMIN-07 / D-SCRIPT-01:
+//   - Idempotent — running it twice is a no-op for an existing SUPERADMIN.
+//   - The role flip + AdminAction insert run in a single prisma.$transaction
+//     so promotion + audit are atomic.
+//   - AdminAction is logged with action='BOOTSTRAP_SUPERADMIN', actorId=self,
+//     metadata={ via: 'cli-script', previousRole }. This means the bootstrap
+//     SUPERADMIN signs their own promotion — appropriate for the bootstrap
+//     case (T-03-07-07 — accepted threat: shell access required).
+//
+// Role hierarchy: USER < ADMIN < SUPERADMIN. Only SUPERADMINs can promote
+// others via the admin back-office, so this script exists to bootstrap the
+// very first one.
 
 import { PrismaClient } from '@prisma/client';
+import { logAdminAction } from '../src/lib/server/admin/audit';
 
-async function main() {
-  const email = process.argv[2]?.trim().toLowerCase();
+// Lazy-construct the client so tests can substitute the prisma module via
+// vi.mock('@/lib/server/prisma') without spinning up a real connection.
+let prismaClient: PrismaClient | null = null;
+function getPrisma(): PrismaClient {
+  if (!prismaClient) prismaClient = new PrismaClient();
+  return prismaClient;
+}
+
+interface RunDeps {
+  // Injectable for tests — defaults to the lazy-instantiated PrismaClient
+  // when called as a CLI.
+  prisma?: Pick<PrismaClient, 'user' | '$transaction' | '$disconnect'>;
+}
+
+export async function main(
+  args: string[] = process.argv.slice(2),
+  deps: RunDeps = {},
+): Promise<number> {
+  const email = args[0]?.trim().toLowerCase();
   if (!email) {
     console.error('Usage: pnpm db:make-superadmin <email>');
-    process.exit(1);
+    return 1;
   }
 
-  const prisma = new PrismaClient();
+  const prisma = deps.prisma ?? getPrisma();
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      console.error(`User not found: ${email}`);
-      console.error('Sign up first at /api/auth/signup, then re-run this script.');
-      process.exit(1);
+      console.error(`Error: user ${email} not found. Sign up first.`);
+      return 1;
     }
 
     if (user.role === 'SUPERADMIN') {
-      console.log(`✓ ${email} is already SUPERADMIN — no change.`);
-      return;
+      console.log(`User ${email} is already SUPERADMIN — no-op.`);
+      return 0;
     }
 
-    const updated = await prisma.user.update({
-      where: { id: user.id },
-      data: { role: 'SUPERADMIN' },
-      select: { email: true, role: true },
+    const previousRole = user.role;
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: user.id },
+        data: { role: 'SUPERADMIN' },
+      });
+      await logAdminAction(tx, {
+        actorId: user.id,
+        action: 'BOOTSTRAP_SUPERADMIN',
+        targetType: 'User',
+        targetId: user.id,
+        metadata: { via: 'cli-script', previousRole },
+      });
     });
-    console.log(`✓ Promoted ${updated.email} to ${updated.role}.`);
+
+    console.log(`✓ Promoted ${email} (id=${user.id}) to SUPERADMIN.`);
+    return 0;
   } finally {
-    await prisma.$disconnect();
+    // Only disconnect the real client; tests pass their own mock and
+    // close it themselves.
+    if (!deps.prisma && prismaClient) {
+      await prismaClient.$disconnect();
+    }
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// CLI entrypoint guard — only run when invoked as a script, not when
+// imported by tests.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main()
+    .then((code) => process.exit(code))
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
+}

@@ -1,35 +1,63 @@
-// ADMIN-01 (Wave 1) — users LIST endpoint behaviour.
+// ADMIN-01 (Waves 1 & 2) — users LIST endpoint + role/status PATCH endpoints.
 //
 // Pattern: prismaMock first (auto-hoists vi.mock for '@/lib/server/prisma'),
-// then mock requireAdmin + enforceAdminRateLimit so we never hit the real
-// JWT/Redis paths.
+// then mock requireAdmin + requireSuperadmin + enforceAdminRateLimit + verifyCsrf
+// so we never hit real JWT/Redis/cookie paths.
 //
-// Wave 1 covers the GET list. The role-change and status PATCH suites
-// remain `it.todo` until Plan 03-06 implements those mutations.
+// Wave 1 covers the GET list. Wave 2 (Plan 03-06) covers PATCH /[id]/role and
+// PATCH /[id]/status.
 import { prismaMock } from '@/test-utils/prisma-mock';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NextRequest, NextResponse } from 'next/server';
 
 vi.mock('@/lib/server/middleware', () => ({
   requireAdmin: vi.fn(),
+  requireSuperadmin: vi.fn(),
 }));
 vi.mock('@/lib/server/middleware/rate-limit-by-userid', () => ({
   enforceAdminRateLimit: vi.fn(),
 }));
+vi.mock('@/lib/server/auth', async () => {
+  const actual = await vi.importActual<typeof import('@/lib/server/auth')>('@/lib/server/auth');
+  return {
+    ...actual,
+    verifyCsrf: vi.fn(),
+  };
+});
+vi.mock('@/lib/server/admin/audit', () => ({
+  logAdminAction: vi.fn().mockResolvedValue(undefined),
+}));
 
-import { requireAdmin } from '@/lib/server/middleware';
+import { requireAdmin, requireSuperadmin } from '@/lib/server/middleware';
 import { enforceAdminRateLimit } from '@/lib/server/middleware/rate-limit-by-userid';
+import { verifyCsrf } from '@/lib/server/auth';
+import { logAdminAction } from '@/lib/server/admin/audit';
 import { encodeCursor } from '@/lib/server/notifications/cursor';
 import { GET } from './route';
-import { seedAdmin, seedSuspendedUser } from '@/test-utils/admin-fixtures';
+import { PATCH as PATCH_ROLE } from './[id]/role/route';
+import {
+  seedAdmin,
+  seedSuperadmin,
+  seedDemotableSuperadmin,
+  seedSuspendedUser,
+} from '@/test-utils/admin-fixtures';
 
 const mockRequireAdmin = vi.mocked(requireAdmin);
+const mockRequireSuperadmin = vi.mocked(requireSuperadmin);
 const mockRateLimit = vi.mocked(enforceAdminRateLimit);
+const mockVerifyCsrf = vi.mocked(verifyCsrf);
+const mockLogAdminAction = vi.mocked(logAdminAction);
 
 const adminUser = seedAdmin({ id: 'admin_1', email: 'admin@test.local' });
 const adminCtx = {
   user: { sub: adminUser.id, email: adminUser.email },
   admin: { id: adminUser.id, email: adminUser.email, role: 'ADMIN' as const },
+};
+
+const superadminUser = seedSuperadmin({ id: 'superadmin_1', email: 'superadmin@test.local' });
+const superadminCtx = {
+  user: { sub: superadminUser.id, email: superadminUser.email },
+  admin: { id: superadminUser.id, email: superadminUser.email, role: 'SUPERADMIN' as const },
 };
 
 function makeGet(url: string): NextRequest {
@@ -66,7 +94,17 @@ function userRow(overrides: Partial<UserListRow> = {}): UserListRow {
 beforeEach(() => {
   vi.clearAllMocks();
   mockRequireAdmin.mockResolvedValue(adminCtx);
+  mockRequireSuperadmin.mockResolvedValue(superadminCtx);
   mockRateLimit.mockResolvedValue(null);
+  mockVerifyCsrf.mockReturnValue(null);
+  mockLogAdminAction.mockResolvedValue(undefined);
+  // Default $transaction passthrough — runs the callback against the prismaMock.
+  prismaMock.$transaction.mockImplementation((cb: unknown) => {
+    if (typeof cb === 'function') {
+      return (cb as (tx: typeof prismaMock) => unknown)(prismaMock) as Promise<unknown>;
+    }
+    return Promise.resolve(cb);
+  });
 });
 
 describe('/api/admin/users [Wave 1] — list', () => {
@@ -208,12 +246,146 @@ describe('/api/admin/users [Wave 1] — list', () => {
   });
 });
 
-// ─── Wave 2 surfaces (PATCH role / PATCH status) — NOT implemented in Plan 03-02 ───
-// Plan 03-06 will convert these `it.todo` blocks to real `it` tests.
+// ─── Wave 2 surfaces (Plan 03-06) ───
+
+function makePatch(url: string, body: unknown): NextRequest {
+  return new NextRequest(url, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+function paramsOf(id: string): { params: Promise<{ id: string }> } {
+  return { params: Promise.resolve({ id }) };
+}
+
 describe('/api/admin/users/[id]/role [Wave 2] — role change', () => {
-  it.todo('PATCH role change SUPERADMIN succeeds and writes AdminAction');
-  it.todo('PATCH role change requires SUPERADMIN (ADMIN gets 403 ADMIN_REQUIRED)');
-  it.todo('PATCH refuses to demote the last SUPERADMIN with 409 LAST_SUPERADMIN');
+  it('PATCH role by SUPERADMIN → 200 + AdminAction row', async () => {
+    const { keeper, demotable } = seedDemotableSuperadmin();
+    mockRequireSuperadmin.mockResolvedValueOnce({
+      user: { sub: keeper.id, email: keeper.email },
+      admin: { id: keeper.id, email: keeper.email, role: 'SUPERADMIN' as const },
+    });
+    // Inside the tx: findUnique returns the demotable user, count=2, then update.
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: demotable.id,
+      role: 'SUPERADMIN',
+    } as never);
+    prismaMock.user.count.mockResolvedValueOnce(2);
+    prismaMock.user.update.mockResolvedValueOnce({ id: demotable.id, role: 'ADMIN' } as never);
+
+    const res = await PATCH_ROLE(
+      makePatch(`http://test/api/admin/users/${demotable.id}/role`, { role: 'ADMIN' }),
+      paramsOf(demotable.id),
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { user: { id: string; role: string } };
+    expect(body.user).toEqual({ id: demotable.id, role: 'ADMIN' });
+    expect(prismaMock.user.update).toHaveBeenCalledWith({
+      where: { id: demotable.id },
+      data: { role: 'ADMIN' },
+      select: { id: true, role: true },
+    });
+    expect(mockLogAdminAction).toHaveBeenCalledTimes(1);
+    expect(mockLogAdminAction).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        actorId: keeper.id,
+        action: 'user.role_change',
+        targetType: 'User',
+        targetId: demotable.id,
+        metadata: { from: 'SUPERADMIN', to: 'ADMIN' },
+      }),
+    );
+  });
+
+  it('PATCH role by ADMIN → 403 ADMIN_REQUIRED (requireSuperadmin gate)', async () => {
+    mockRequireSuperadmin.mockResolvedValueOnce(
+      NextResponse.json(
+        { error: 'ADMIN_REQUIRED', message: 'Admin access required' },
+        { status: 403 },
+      ),
+    );
+
+    const res = await PATCH_ROLE(
+      makePatch('http://test/api/admin/users/u_target/role', { role: 'ADMIN' }),
+      paramsOf('u_target'),
+    );
+
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('ADMIN_REQUIRED');
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
+  it('PATCH demoting last SUPERADMIN → 409 LAST_SUPERADMIN (no update, no AdminAction)', async () => {
+    // Only ONE SUPERADMIN exists; SUPERADMIN tries to demote themselves.
+    const onlyOne = seedSuperadmin({ id: 'superadmin_only', email: 'only@test.local' });
+    mockRequireSuperadmin.mockResolvedValueOnce({
+      user: { sub: onlyOne.id, email: onlyOne.email },
+      admin: { id: onlyOne.id, email: onlyOne.email, role: 'SUPERADMIN' as const },
+    });
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: onlyOne.id,
+      role: 'SUPERADMIN',
+    } as never);
+    prismaMock.user.count.mockResolvedValueOnce(1);
+
+    const res = await PATCH_ROLE(
+      makePatch(`http://test/api/admin/users/${onlyOne.id}/role`, { role: 'ADMIN' }),
+      paramsOf(onlyOne.id),
+    );
+
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('LAST_SUPERADMIN');
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
+  it('PATCH role on missing user → 404 USER_NOT_FOUND', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce(null);
+
+    const res = await PATCH_ROLE(
+      makePatch('http://test/api/admin/users/u_missing/role', { role: 'ADMIN' }),
+      paramsOf('u_missing'),
+    );
+
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('USER_NOT_FOUND');
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
+  it('PATCH role with invalid body → 400 VALIDATION_FAILED', async () => {
+    const res = await PATCH_ROLE(
+      makePatch('http://test/api/admin/users/u_target/role', { role: 'BOGUS' }),
+      paramsOf('u_target'),
+    );
+
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('VALIDATION_FAILED');
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+  });
+
+  it('PATCH role rejects when CSRF fails — verifyCsrf 403 short-circuits before auth', async () => {
+    mockVerifyCsrf.mockReturnValueOnce(
+      NextResponse.json({ error: 'Invalid CSRF token' }, { status: 403 }),
+    );
+
+    const res = await PATCH_ROLE(
+      makePatch('http://test/api/admin/users/u_target/role', { role: 'ADMIN' }),
+      paramsOf('u_target'),
+    );
+
+    expect(res.status).toBe(403);
+    expect(mockRequireSuperadmin).not.toHaveBeenCalled();
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+  });
 });
 
 describe('/api/admin/users/[id]/status [Wave 2] — suspend / restore', () => {

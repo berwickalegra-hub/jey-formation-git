@@ -42,7 +42,6 @@ describe('POST /api/cron/outbox-drain (CRON-01, CRON-06)', () => {
     (verifyCronSecret as Mock).mockReturnValueOnce(
       NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 }),
     );
-    // @ts-expect-error -- route ships in Wave 1 (plan 05-03); RED-by-design until then
     const { POST } = await import('./route');
     const res = await POST(makeReq('outbox-drain'));
     expect(res.status).toBe(401);
@@ -50,7 +49,6 @@ describe('POST /api/cron/outbox-drain (CRON-01, CRON-06)', () => {
 
   it('happy path returns processed count from drainOutbox', async () => {
     drainOutboxMock.mockResolvedValueOnce({ processed: 7, succeeded: 6, failed: 1, dead: 0 });
-    // @ts-expect-error -- route ships in Wave 1 (plan 05-03); RED-by-design until then
     const { POST } = await import('./route');
     const res = await POST(makeReq('outbox-drain'));
     expect(res.status).toBe(200);
@@ -59,7 +57,6 @@ describe('POST /api/cron/outbox-drain (CRON-01, CRON-06)', () => {
 
   it('calls withLease with name=outbox-drain and ttl >= 60_000ms', async () => {
     const { withLease } = await import('@/lib/server/leader-lease');
-    // @ts-expect-error -- route ships in Wave 1 (plan 05-03); RED-by-design until then
     const { POST } = await import('./route');
     await POST(makeReq('outbox-drain'));
     expect(withLease).toHaveBeenCalled();
@@ -68,7 +65,6 @@ describe('POST /api/cron/outbox-drain (CRON-01, CRON-06)', () => {
   });
 
   it('resets stuck PROCESSING rows older than 90s before drainOutbox (D-09)', async () => {
-    // @ts-expect-error -- route ships in Wave 1 (plan 05-03); RED-by-design until then
     const { POST } = await import('./route');
     await POST(makeReq('outbox-drain'));
     expect(updateManyMock).toHaveBeenCalled();
@@ -86,7 +82,6 @@ describe('POST /api/cron/outbox-drain (CRON-01, CRON-06)', () => {
   });
 
   it('passes BATCH_SIZE=100 to drainOutbox (D-08)', async () => {
-    // @ts-expect-error -- route ships in Wave 1 (plan 05-03); RED-by-design until then
     const { POST } = await import('./route');
     await POST(makeReq('outbox-drain'));
     expect(drainOutboxMock.mock.calls[0]![1]).toBe(100);

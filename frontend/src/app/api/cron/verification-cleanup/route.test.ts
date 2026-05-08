@@ -35,7 +35,6 @@ describe('POST /api/cron/verification-cleanup (CRON-03, CRON-06)', () => {
     (verifyCronSecret as Mock).mockReturnValueOnce(
       NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 }),
     );
-    // @ts-expect-error -- route ships in Wave 1 (plan 05-05); RED-by-design until then
     const { POST } = await import('./route');
     const res = await POST(makeReq('verification-cleanup'));
     expect(res.status).toBe(401);
@@ -43,7 +42,6 @@ describe('POST /api/cron/verification-cleanup (CRON-03, CRON-06)', () => {
 
   it('deletes expired verification codes (CRON-03)', async () => {
     deleteMany.mockResolvedValueOnce({ count: 3 });
-    // @ts-expect-error -- route ships in Wave 1 (plan 05-05); RED-by-design until then
     const { POST } = await import('./route');
     const res = await POST(makeReq('verification-cleanup'));
     expect(res.status).toBe(200);
@@ -54,7 +52,6 @@ describe('POST /api/cron/verification-cleanup (CRON-03, CRON-06)', () => {
 
   it('returns processed count from deleteMany', async () => {
     deleteMany.mockResolvedValueOnce({ count: 12 });
-    // @ts-expect-error -- route ships in Wave 1 (plan 05-05); RED-by-design until then
     const { POST } = await import('./route');
     const res = await POST(makeReq('verification-cleanup'));
     expect(await res.json()).toEqual({ ok: true, processed: 12 });

@@ -17,10 +17,7 @@ import { generateState, generateCodeVerifier } from 'arctic';
 import { cookies } from 'next/headers';
 import { tryCreateGoogleProvider } from '@/lib/server/oauth/google';
 import { isSameOriginNext } from '@/lib/server/oauth/error-redirect';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 import { log } from '@/lib/server/observability/log';
 
 const COOKIE_PREFIX = process.env.COOKIE_PREFIX || 'app';
@@ -47,9 +44,7 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
     const state = generateState();
     const codeVerifier = generateCodeVerifier();
-    const url = provider.client.createAuthorizationURL(state, codeVerifier, [
-      ...provider.scopes,
-    ]);
+    const url = provider.client.createAuthorizationURL(state, codeVerifier, [...provider.scopes]);
 
     const store = await cookies();
     const cookieOpts = {

@@ -24,8 +24,7 @@ vi.mock('@/lib/server/notifications', () => ({
   createNotification: vi.fn().mockResolvedValue({ id: 'notif-1' }),
 }));
 vi.mock('@/lib/server/auth', async () => {
-  const actual =
-    await vi.importActual<typeof import('@/lib/server/auth')>('@/lib/server/auth');
+  const actual = await vi.importActual<typeof import('@/lib/server/auth')>('@/lib/server/auth');
   return {
     ...actual,
     setAuthCookies: vi.fn(),

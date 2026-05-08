@@ -36,10 +36,7 @@ import { requireAuth } from '@/lib/server/middleware';
 import { prisma } from '@/lib/server/prisma';
 import { hashPin, verifyPin, alwaysCompareDummy } from '@/lib/server/auth/pin';
 import { isLockedOut, recordFailure, recordSuccess } from '@/lib/server/auth/lockout';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 import { log } from '@/lib/server/observability/log';
 
 const PinDigits = z.string().regex(/^\d{4,6}$/);

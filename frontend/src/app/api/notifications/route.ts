@@ -19,10 +19,7 @@ import { verifyCsrf } from '@/lib/server/auth';
 import { requireAuth } from '@/lib/server/middleware';
 import { prisma } from '@/lib/server/prisma';
 import { encodeCursor, decodeCursor } from '@/lib/server/notifications/cursor';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;

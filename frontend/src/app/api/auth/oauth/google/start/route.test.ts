@@ -17,10 +17,15 @@ vi.mock('@/lib/server/oauth/google', () => ({
   tryCreateGoogleProvider: vi.fn(),
 }));
 
-import { tryCreateGoogleProvider } from '@/lib/server/oauth/google';
+import { tryCreateGoogleProvider, type GoogleProviderHandle } from '@/lib/server/oauth/google';
 import { GET } from './route';
 
 const mockTryCreate = vi.mocked(tryCreateGoogleProvider);
+
+// Help TypeScript: tryCreateGoogleProvider returns `GoogleProviderHandle | undefined`,
+// so a bare `ReturnType<typeof …>['client']` doesn't narrow. Use the explicit
+// interface field for the cast.
+type ProviderClient = GoogleProviderHandle['client'];
 
 function makeReq(url = 'https://app.example.test/api/auth/oauth/google/start'): NextRequest {
   return new NextRequest(url);
@@ -61,7 +66,7 @@ describe('GET /api/auth/oauth/google/start', () => {
           u.searchParams.set('code_challenge_method', 'S256');
           return u;
         },
-      } as unknown as ReturnType<typeof tryCreateGoogleProvider>['client'],
+      } as unknown as ProviderClient,
       scopes: ['openid', 'email', 'profile'] as const,
       redirectUri: 'https://app.example.test/api/auth/oauth/google/callback',
     });
@@ -106,7 +111,7 @@ describe('GET /api/auth/oauth/google/start', () => {
     mockTryCreate.mockReturnValue({
       client: {
         createAuthorizationURL: () => new URL('https://accounts.google.com/?state=x'),
-      } as unknown as ReturnType<typeof tryCreateGoogleProvider>['client'],
+      } as unknown as ProviderClient,
       scopes: ['openid', 'email', 'profile'] as const,
       redirectUri: '',
     });
@@ -131,7 +136,7 @@ describe('GET /api/auth/oauth/google/start', () => {
     mockTryCreate.mockReturnValue({
       client: {
         createAuthorizationURL: () => new URL('https://accounts.google.com/?state=x'),
-      } as unknown as ReturnType<typeof tryCreateGoogleProvider>['client'],
+      } as unknown as ProviderClient,
       scopes: ['openid', 'email', 'profile'] as const,
       redirectUri: '',
     });
@@ -144,7 +149,7 @@ describe('GET /api/auth/oauth/google/start', () => {
     mockTryCreate.mockReturnValue({
       client: {
         createAuthorizationURL: () => new URL('https://accounts.google.com/?state=x'),
-      } as unknown as ReturnType<typeof tryCreateGoogleProvider>['client'],
+      } as unknown as ProviderClient,
       scopes: ['openid', 'email', 'profile'] as const,
       redirectUri: '',
     });

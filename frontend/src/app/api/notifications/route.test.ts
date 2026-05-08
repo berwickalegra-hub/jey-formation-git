@@ -29,7 +29,10 @@ function makeGet(url: string): NextRequest {
   return new NextRequest(url, { method: 'GET' });
 }
 
-function makePatch(body: unknown, opts: { csrf?: 'match' | 'missing' | 'header-only' } = {}): NextRequest {
+function makePatch(
+  body: unknown,
+  opts: { csrf?: 'match' | 'missing' | 'header-only' } = {},
+): NextRequest {
   const csrf = opts.csrf ?? 'match';
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (csrf === 'match' || csrf === 'header-only') {
@@ -77,7 +80,9 @@ beforeEach(() => {
 
 describe('GET /api/notifications', () => {
   it('Test 1: returns 401 when requireAuth bails', async () => {
-    mockRequireAuth.mockResolvedValueOnce(NextResponse.json({ error: 'Missing token' }, { status: 401 }));
+    mockRequireAuth.mockResolvedValueOnce(
+      NextResponse.json({ error: 'Missing token' }, { status: 401 }),
+    );
     const res = await GET(makeGet('http://test/api/notifications'));
     expect(res.status).toBe(401);
   });
@@ -113,7 +118,9 @@ describe('GET /api/notifications', () => {
       id: 'n-9',
     });
     prismaMock.notification.findMany.mockResolvedValue([] as never);
-    await GET(makeGet(`http://test/api/notifications?limit=10&cursor=${encodeURIComponent(cursor)}`));
+    await GET(
+      makeGet(`http://test/api/notifications?limit=10&cursor=${encodeURIComponent(cursor)}`),
+    );
     const args = prismaMock.notification.findMany.mock.calls[0]?.[0];
     const or = args?.where?.OR as Array<Record<string, unknown>> | undefined;
     expect(or).toBeDefined();
@@ -238,7 +245,9 @@ describe('PATCH /api/notifications', () => {
   });
 
   it('Test 13b: requireAuth bail → 401, no Prisma calls', async () => {
-    mockRequireAuth.mockResolvedValueOnce(NextResponse.json({ error: 'Missing token' }, { status: 401 }));
+    mockRequireAuth.mockResolvedValueOnce(
+      NextResponse.json({ error: 'Missing token' }, { status: 401 }),
+    );
     const res = await PATCH(makePatch({ ids: 'all' }));
     expect(res.status).toBe(401);
     expect(prismaMock.notification.updateMany).not.toHaveBeenCalled();

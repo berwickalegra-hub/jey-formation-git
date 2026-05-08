@@ -30,7 +30,9 @@ beforeEach(() => {
 
 describe('GET /api/notifications/count', () => {
   it('Test 1: returns 401 when requireAuth bails', async () => {
-    mockRequireAuth.mockResolvedValueOnce(NextResponse.json({ error: 'Missing token' }, { status: 401 }));
+    mockRequireAuth.mockResolvedValueOnce(
+      NextResponse.json({ error: 'Missing token' }, { status: 401 }),
+    );
     const res = await GET(makeGet());
     expect(res.status).toBe(401);
     expect(prismaMock.notification.count).not.toHaveBeenCalled();

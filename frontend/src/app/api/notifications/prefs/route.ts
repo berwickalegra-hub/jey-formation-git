@@ -13,14 +13,8 @@ import type { Prisma } from '@prisma/client';
 import { verifyCsrf } from '@/lib/server/auth';
 import { requireAuth } from '@/lib/server/middleware';
 import { prisma } from '@/lib/server/prisma';
-import {
-  mergePrefs,
-  type NotificationPrefs,
-} from '@/lib/server/notifications/prefs-merge';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { mergePrefs, type NotificationPrefs } from '@/lib/server/notifications/prefs-merge';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 
 const ChannelPrefs = z.object({
   email: z.boolean().optional(),

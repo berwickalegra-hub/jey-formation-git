@@ -34,10 +34,7 @@ import {
 import { prisma } from '@/lib/server/prisma';
 import { createNotification } from '@/lib/server/notifications';
 import { welcomeNotification } from '@/lib/server/notifications/templates';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 import { log } from '@/lib/server/observability/log';
 
 const COOKIE_PREFIX = process.env.COOKIE_PREFIX || 'app';

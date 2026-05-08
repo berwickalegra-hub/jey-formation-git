@@ -35,7 +35,9 @@ describe('redirectToAuthError', () => {
   it('builds absolute URL when appUrl is provided', () => {
     const res = redirectToAuthError('OAUTH_GENERIC', { appUrl: 'https://app.example.com' });
     expect(res.status).toBe(302);
-    expect(res.headers.get('location')).toBe('https://app.example.com/auth/error?code=OAUTH_GENERIC');
+    expect(res.headers.get('location')).toBe(
+      'https://app.example.com/auth/error?code=OAUTH_GENERIC',
+    );
   });
 });
 

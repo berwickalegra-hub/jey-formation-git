@@ -67,7 +67,9 @@ describe('GET /api/notifications/prefs', () => {
   });
 
   it('Test 3: requireAuth bail → 401', async () => {
-    mockRequireAuth.mockResolvedValueOnce(NextResponse.json({ error: 'Missing token' }, { status: 401 }));
+    mockRequireAuth.mockResolvedValueOnce(
+      NextResponse.json({ error: 'Missing token' }, { status: 401 }),
+    );
     const res = await GET(makeGet());
     expect(res.status).toBe(401);
     expect(prismaMock.notificationPreferences.findUnique).not.toHaveBeenCalled();
@@ -91,9 +93,7 @@ describe('PATCH /api/notifications/prefs', () => {
   it('Test 5: no existing row + valid patch → upsert with merged prefs', async () => {
     prismaMock.notificationPreferences.findUnique.mockResolvedValue(null);
     prismaMock.notificationPreferences.upsert.mockResolvedValue({} as never);
-    const res = await PATCH(
-      makePatch({ prefs: { ORDER_PAID: { email: false, inApp: true } } }),
-    );
+    const res = await PATCH(makePatch({ prefs: { ORDER_PAID: { email: false, inApp: true } } }));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.prefs).toEqual({ ORDER_PAID: { email: false, inApp: true } });
@@ -110,9 +110,7 @@ describe('PATCH /api/notifications/prefs', () => {
       prefs: { WELCOME: { email: true, inApp: true } },
     } as never);
     prismaMock.notificationPreferences.upsert.mockResolvedValue({} as never);
-    const res = await PATCH(
-      makePatch({ prefs: { ORDER_PAID: { email: false, inApp: true } } }),
-    );
+    const res = await PATCH(makePatch({ prefs: { ORDER_PAID: { email: false, inApp: true } } }));
     const body = await res.json();
     expect(body.prefs).toEqual({
       WELCOME: { email: true, inApp: true },
@@ -150,7 +148,9 @@ describe('PATCH /api/notifications/prefs', () => {
   });
 
   it('PATCH: requireAuth bail → 401, no upsert', async () => {
-    mockRequireAuth.mockResolvedValueOnce(NextResponse.json({ error: 'Missing token' }, { status: 401 }));
+    mockRequireAuth.mockResolvedValueOnce(
+      NextResponse.json({ error: 'Missing token' }, { status: 401 }),
+    );
     const res = await PATCH(makePatch({ prefs: {} }));
     expect(res.status).toBe(401);
     expect(prismaMock.notificationPreferences.upsert).not.toHaveBeenCalled();

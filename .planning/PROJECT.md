@@ -31,19 +31,22 @@ Cloning this repo and filling in `.env` produces a working Next.js app on Vercel
 - ✓ **OBS-04**: `lib/server/observability/request-context.ts` (AsyncLocalStorage + UUID generation + inbound `X-Request-Id` validation) and `log.ts` wrapper (injects `requestId` into log context without modifying `lib/server/logger.ts`) — Phase 0; per-route `X-Request-Id` response header lands in Phase 1+
 - ✓ **OBS-05**: `@vercel/otel` `registerOTel({ serviceName: 'amadou-monolith' })` in `instrumentation.ts`, coexists with Sentry — Phase 0
 
+#### Validated in Phase 1 (Auth Routes)
+
+- ✓ **AUTH-01**: All 9 auth routes shipped under `frontend/src/app/api/auth/*/route.ts` — `signup` (enumeration-resistant), `login` (per-email rate limit + lockout), `logout`, `refresh` (path-scoped), `me`, `verify-email` (issues cookies), `forgot-password`, `reset-password`, `change-password`. Lib helpers: banned-passwords, HIBP k-anonymity, lockout (Redis sliding-window + memory fallback), refresh-lock (SETNX + Lua release), dummy-bcrypt, email-templates. 140/140 tests green at phase close.
+
+#### Validated in Phase 2 (OAuth, Notifications, Withdrawal-PIN, 2026-05-08)
+
+- ✓ **AUTH-02**: Google OAuth `start` + `callback` routes shipped at `frontend/src/app/api/auth/oauth/google/{start,callback}/route.ts` — state + PKCE cookies path-scoped to `/api/auth/oauth` (5min TTL), callback refuses `email_verified !== true` (account-takeover guard), find-or-create with email-based account linking (D-01), welcome notification dispatched via `createNotification` (D-03 + NOTIF-05 invariant)
+- ✓ **AUTH-03**: Withdrawal-PIN routes shipped at `frontend/src/app/api/auth/withdrawal-pin/route.ts` (POST set/change + DELETE remove) — bcrypt cost 12, isolated lockout key `pin:${userId}` (cannot couple with login lockout), timing-safe comparison via dummy-hash on no-PIN paths
+- ✓ **NOTIF-01**: Notification routes shipped at `frontend/src/app/api/notifications/{,count,prefs}/route.ts` — GET list (cursor-paginated), PATCH mark-read, GET count, GET/PATCH prefs (deep-merge for opt-out semantics). Pure-helper layer at `frontend/src/lib/server/{oauth/error-redirect,auth/pin,notifications/cursor,notifications/prefs-merge}.ts` — 49 helper tests, 262/262 full-repo tests green
+- ⏳ **8 human-UAT items pending** in `02-HUMAN-UAT.md` (real Google round-trip, real Redis lockout state, populated-DB pagination, etc.)
+
 ### Active
 
 <!-- Remaining port surface (M3–M8 per STATUS.md) plus monolith-specific work. Each is a hypothesis until shipped. -->
 
-**Auth & OAuth**
-
-- [ ] **AUTH-01**: Port the 9 auth routes — `signup` (enumeration-resistant, no cookies), `login` (per-email rate limit + lockout), `logout`, `refresh` (path-scoped), `me`, `verify-email` (issues cookies), `forgot-password`, `reset-password`, `change-password`
-- [ ] **AUTH-02**: Port the Google OAuth `start` + `callback` routes (state + PKCE cookies path-scoped to `/api/auth/oauth`, refuse `email_verified !== true`, account-link by email)
-- [ ] **AUTH-03**: Port the withdrawal-PIN routes (`GET` / `POST` / `DELETE` under `/api/auth/withdrawal-pin`)
-
 **Domain routes**
-
-- [ ] **NOTIF-01**: Port the notification routes — list/mark-read, count, prefs
 - [ ] **UP-01**: Port `upload` (replace multer with `req.formData()` + magic-byte sniff, gated by `UPLOAD_ALLOWED_MIME`) and `files/[...key]` (R2 stream proxy)
 - [ ] **PAY-01**: Port `orders` route (Bictorys charge via `PaymentProvider` interface, single-instance circuit breaker)
 - [ ] **WD-01**: Port `withdrawals` (GET list + POST) using `pg_advisory_xact_lock(hashtext(userId))` inside Serializable tx — must reuse the existing `withdrawals/lock.ts` exactly, never re-implement
@@ -140,4 +143,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-07 after Phase 0 (Foundation) completion*
+*Last updated: 2026-05-08 after Phase 2 (OAuth, Notifications, Withdrawal-PIN) completion*

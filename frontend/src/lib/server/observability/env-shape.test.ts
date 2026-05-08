@@ -83,3 +83,19 @@ describe('.env.example phase 4 additions (UP-01, UP-02, WD-01..04)', () => {
     expect(src).toContain('WITHDRAWAL_REQUIRE_PIN="1"');
   });
 });
+
+// ───────────────────────────────────────────────────────────────────────
+// Phase 5 — webhook log retention + order expiration knobs.
+//
+// Tripwires for the two new env keys CRON-05 (webhook-log-purge retention)
+// and the Phase-3 fork-knob ORDER_EXPIRATION_MINUTES. Refactors that drop
+// either default fail CI here.
+// ───────────────────────────────────────────────────────────────────────
+describe('.env.example phase 5 additions (CRON-05 + Phase 5 ENV)', () => {
+  const src = readFileSync(ENV_EXAMPLE, 'utf8');
+
+  it('contains WEBHOOK_LOG_RETENTION_DAYS and ORDER_EXPIRATION_MINUTES with defaults', () => {
+    expect(src).toContain('WEBHOOK_LOG_RETENTION_DAYS="90"');
+    expect(src).toContain('ORDER_EXPIRATION_MINUTES="30"');
+  });
+});

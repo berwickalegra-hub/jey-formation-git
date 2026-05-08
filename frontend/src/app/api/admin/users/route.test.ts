@@ -526,6 +526,56 @@ describe('/api/admin/users/[id]/status [Wave 2] — suspend / restore', () => {
     );
   });
 
+  // CR-01 regression: an ADMIN must NOT be able to suspend a SUPERADMIN.
+  // Without this guard, a single ADMIN PATCH could lock every higher-privilege
+  // account out of the system (combined with ACCOUNT_SUSPENDED 403 on
+  // /api/auth/login + /api/auth/refresh), bypassing the last-SUPERADMIN guard
+  // which only watches `User.role`.
+  it('PATCH ACTIVE → SUSPENDED on a SUPERADMIN by ADMIN → 403 SUSPEND_REQUIRES_SUPERADMIN', async () => {
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: 'super_target',
+      status: 'ACTIVE',
+      email: 'super@test.local',
+      name: null,
+      role: 'SUPERADMIN',
+    } as never);
+
+    const res = await PATCH_STATUS(
+      makePatch('http://test/api/admin/users/super_target/status', { status: 'SUSPENDED' }),
+      paramsOf('super_target'),
+    );
+
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('SUSPEND_REQUIRES_SUPERADMIN');
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+    expect(mockLogAdminAction).not.toHaveBeenCalled();
+  });
+
+  it('PATCH ACTIVE → SUSPENDED on a SUPERADMIN by SUPERADMIN → 200 + AdminAction user.suspend', async () => {
+    mockRequireAdmin.mockResolvedValueOnce(superadminCtx);
+    prismaMock.user.findUnique.mockResolvedValueOnce({
+      id: 'super_target_2',
+      status: 'ACTIVE',
+      email: 'super2@test.local',
+      name: null,
+      role: 'SUPERADMIN',
+    } as never);
+    prismaMock.user.update.mockResolvedValueOnce({
+      id: 'super_target_2',
+      status: 'SUSPENDED',
+    } as never);
+
+    const res = await PATCH_STATUS(
+      makePatch('http://test/api/admin/users/super_target_2/status', { status: 'SUSPENDED' }),
+      paramsOf('super_target_2'),
+    );
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.user.update).toHaveBeenCalledTimes(1);
+    expect(mockLogAdminAction).toHaveBeenCalledTimes(1);
+  });
+
   it('PATCH status on missing user → 404 USER_NOT_FOUND', async () => {
     prismaMock.user.findUnique.mockResolvedValueOnce(null);
 

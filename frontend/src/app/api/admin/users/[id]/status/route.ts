@@ -33,6 +33,7 @@ const Body = z.object({
 type Discriminator =
   | { kind: 'NOT_FOUND' }
   | { kind: 'RESTORE_REQUIRES_SUPERADMIN' }
+  | { kind: 'SUSPEND_REQUIRES_SUPERADMIN' }
   | { kind: 'OK'; user: { id: string; status: string } };
 
 export async function PATCH(
@@ -81,6 +82,18 @@ export async function PATCH(
         return { kind: 'RESTORE_REQUIRES_SUPERADMIN' as const };
       }
 
+      // CR-01: ACTIVE → SUSPENDED on a SUPERADMIN target requires SUPERADMIN
+      // actor. Without this an ADMIN could lock every higher-privilege account
+      // out of the system in one PATCH (combined with the ACCOUNT_SUSPENDED
+      // 403 on /api/auth/login + /api/auth/refresh), bypassing the
+      // last-SUPERADMIN guard which only watches `User.role`. Mirrors the
+      // CLAUDE.md rule "Only SUPERADMIN can change roles" — suspension is
+      // functionally a role change because it strips authentication.
+      const isSuspend = target.status === 'ACTIVE' && parsed.data.status === 'SUSPENDED';
+      if (isSuspend && target.role === 'SUPERADMIN' && auth.admin.role !== 'SUPERADMIN') {
+        return { kind: 'SUSPEND_REQUIRES_SUPERADMIN' as const };
+      }
+
       const updated = await tx.user.update({
         where: { id },
         data: { status: parsed.data.status },
@@ -113,6 +126,15 @@ export async function PATCH(
         {
           error: 'RESTORE_REQUIRES_SUPERADMIN',
           message: 'Only a SUPERADMIN can restore a suspended account.',
+        },
+        { status: 403 },
+      );
+    }
+    if (result.kind === 'SUSPEND_REQUIRES_SUPERADMIN') {
+      return NextResponse.json(
+        {
+          error: 'SUSPEND_REQUIRES_SUPERADMIN',
+          message: 'Only a SUPERADMIN can suspend a SUPERADMIN account.',
         },
         { status: 403 },
       );

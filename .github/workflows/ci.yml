@@ -51,3 +51,8 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      # Fail the build on high/critical CVEs in production deps.
+      # Dev-only advisories are tolerated (they don't ship to users).
+      - name: Audit (prod deps, high+ severity)
+        run: pnpm audit --prod --audit-level=high

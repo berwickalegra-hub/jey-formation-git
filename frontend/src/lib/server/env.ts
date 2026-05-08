@@ -45,10 +45,15 @@ const envSchema = z.object({
   // ── Tunables (numeric, with safe defaults) ───────────────────────────
   AUTH_LOGIN_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(10),
   AUTH_SIGNUP_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
+  AUTH_FORGOT_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(3),
+  AUTH_RESET_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
+  AUTH_VERIFY_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(5),
+  AUTH_RESEND_VERIFY_RATE_LIMIT_MAX: z.coerce.number().int().positive().default(3),
   AUTH_LOCKOUT_THRESHOLD: z.coerce.number().int().positive().default(5),
   AUTH_LOCKOUT_DURATION_MIN: z.coerce.number().int().positive().default(30),
   AUTH_FORGOT_TARGET_LATENCY_MS: z.coerce.number().int().nonnegative().default(350),
-  PASSWORD_MIN_LENGTH: z.coerce.number().int().min(8).default(12),
+  AUTH_VERIFICATION_TTL_MIN: z.coerce.number().int().positive().default(15),
+  AUTH_PASSWORD_MIN_LENGTH: z.coerce.number().int().min(8).default(10),
 
   // ── Boolean flags ────────────────────────────────────────────────────
   PASSWORD_HIBP_CHECK: flag,

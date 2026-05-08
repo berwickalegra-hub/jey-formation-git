@@ -4,9 +4,9 @@
 #   docker compose down         # stop everything (data persists in named volumes)
 #   docker compose down -v      # nuke data too
 #
-# The backend + frontend run on the host (`pnpm dev`) — they connect to
-# these containers via the localhost ports below. This lets `tsx watch`
-# stay fast and IDE integrations (debugger, prisma studio) work locally.
+# The Next.js app runs on the host (`pnpm dev` -> :3000) and connects to
+# these containers via the localhost ports below. This keeps `next dev`
+# fast and lets IDE integrations (debugger, prisma studio) work locally.
 #
 # Endpoints once it's up:
 #   Postgres   localhost:5432    (postgres / postgres)
@@ -34,7 +34,7 @@ services:
       timeout: 3s
       retries: 10
 
-  # Upstash-compatible Redis. The backend talks to Upstash via REST in prod;
+  # Upstash-compatible Redis. The app talks to Upstash via REST in prod;
   # in dev we use stock Redis + the fact that the Upstash client supports
   # local-mode via REDIS_URL (set in .env, see .env.example below).
   redis:
@@ -49,8 +49,8 @@ services:
       timeout: 3s
       retries: 10
 
-  # S3-compatible — drop-in for Cloudflare R2 in dev. Use the AWS SDK v3
-  # client that the backend ships with (lib/storage.ts). Endpoint URL
+  # S3-compatible — drop-in for Cloudflare R2 in dev. The app uses the
+  # AWS SDK v3 client (frontend/src/lib/server/storage.ts). Endpoint URL
   # override goes in .env (R2_ACCOUNT_ID becomes irrelevant; supply
   # R2_ENDPOINT_URL=http://localhost:9000 instead).
   minio:

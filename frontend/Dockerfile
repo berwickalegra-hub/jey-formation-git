@@ -10,7 +10,6 @@ WORKDIR /repo
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
-COPY backend/package.json backend/
 COPY frontend/package.json frontend/
 
 RUN pnpm install --frozen-lockfile --ignore-scripts --filter frontend...

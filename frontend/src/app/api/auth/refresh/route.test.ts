@@ -146,4 +146,27 @@ describe('POST /api/auth/refresh', () => {
     expect((await res.json()).error).toBe('INVALID_REFRESH');
     expect(acquireRefreshLock).not.toHaveBeenCalled();
   });
+
+  it('Test 8 (D-ADMIN-02): SUSPENDED user — 403 ACCOUNT_SUSPENDED, no rotation, no lock acquired', async () => {
+    vi.mocked(verifyRefreshToken).mockResolvedValue({ sub: 'u_susp', tokenVersion: 0 });
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'u_susp',
+      email: 'suspended@b.com',
+      tokenVersion: 0,
+      status: 'SUSPENDED',
+    } as never);
+
+    const res = await POST(makeReq('valid'));
+
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toBe('ACCOUNT_SUSPENDED');
+    // No cookies rotated.
+    expect(__cookieStore.has('app-token')).toBe(false);
+    expect(__cookieStore.has('app-refresh')).toBe(false);
+    expect(__cookieStore.has('app-csrf')).toBe(false);
+    // Refresh-lock never acquired (we 403 before D-20).
+    expect(acquireRefreshLock).not.toHaveBeenCalled();
+    expect(releaseSpy).not.toHaveBeenCalled();
+  });
 });

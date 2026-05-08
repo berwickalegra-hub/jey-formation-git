@@ -62,7 +62,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, email: true, tokenVersion: true },
+      select: { id: true, email: true, tokenVersion: true, status: true },
     });
     if (!user) {
       return NextResponse.json(
@@ -75,6 +75,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         { error: 'INVALID_REFRESH', message: 'Session expired.' },
         { status: 401, headers: { 'x-request-id': ctx.requestId } },
+      );
+    }
+
+    // D-ADMIN-02 — refuse SUSPENDED users on refresh. The refresh route is the
+    // 15-min choke point: once we 403 here, the existing access JWT expires
+    // within its 15-min TTL and the user is fully locked out without needing
+    // to revoke per-token state.
+    if (user.status === 'SUSPENDED') {
+      return NextResponse.json(
+        { error: 'ACCOUNT_SUSPENDED', message: 'This account has been suspended.' },
+        { status: 403, headers: { 'x-request-id': ctx.requestId } },
       );
     }
 

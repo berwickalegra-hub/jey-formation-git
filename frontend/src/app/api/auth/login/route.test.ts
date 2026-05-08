@@ -170,4 +170,29 @@ describe('POST /api/auth/login', () => {
     expect(res.status).toBe(400);
     expect((await res.json()).error).toBe('VALIDATION_FAILED');
   });
+
+  it('Test 9 (D-ADMIN-02): SUSPENDED user with valid credentials — 403 ACCOUNT_SUSPENDED, no cookies, no recordSuccess', async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      id: 'u_susp',
+      email: 'suspended@b.com',
+      passwordHash: '$2a$12$hashhashhashhashhashhashhashhashhashhashhashhashhashhha',
+      emailVerifiedAt: new Date(),
+      tokenVersion: 0,
+      status: 'SUSPENDED',
+    } as never);
+    vi.mocked(verifyPassword).mockResolvedValue(true);
+
+    const res = await POST(makeReq({ email: 'suspended@b.com', password: 'longenough' }));
+
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.error).toBe('ACCOUNT_SUSPENDED');
+    expect(body.message).toMatch(/suspended/i);
+    // Pitfall 2 — recordSuccess MUST NOT be called (lockout counter preserved).
+    expect(recordSuccess).not.toHaveBeenCalled();
+    // No cookies issued.
+    expect(__cookieStore.has('app-token')).toBe(false);
+    expect(__cookieStore.has('app-refresh')).toBe(false);
+    expect(__cookieStore.has('app-csrf')).toBe(false);
+  });
 });

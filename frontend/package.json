@@ -16,8 +16,8 @@
     "db:migrate:status": "prisma migrate status",
     "db:migrate:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
-    "db:make-superadmin": "tsx scripts/make-superadmin.ts",
-    "seed:dev": "tsx scripts/seed-dev.ts",
+    "db:make-superadmin": "tsx --env-file=.env scripts/make-superadmin.ts",
+    "seed:dev": "tsx --env-file=.env scripts/seed-dev.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

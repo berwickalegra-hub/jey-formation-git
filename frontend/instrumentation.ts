@@ -17,4 +17,6 @@ export async function register() {
 }
 
 // Required for Sentry to capture unhandled route errors (Next.js 15+).
-export { onRequestError } from '@sentry/nextjs';
+// Sentry 10.x renamed onRequestError → captureRequestError; alias preserves
+// the export name Next.js looks for.
+export { captureRequestError as onRequestError } from '@sentry/nextjs';

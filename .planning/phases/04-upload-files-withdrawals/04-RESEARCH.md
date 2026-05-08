@@ -747,27 +747,27 @@ The `withdrawals/lock.ts` test should already cover the SQL invocation. For the 
 | A4 | Adding `Withdrawal.idempotencyKey` should be deferred (the advisory lock is sufficient for race-safety, and `api()` doesn't retry POSTs) | Alternatives Considered | If a fork wires a non-monolith client that DOES retry POSTs, they'd need this. Cheap to add later as additive `String? @unique` migration; no data backfill required. |
 | A5 | `WITHDRAWAL_REQUESTED` notification is OPTIONAL (CONTEXT.md `<specifics>` says optional/cheap) | Pattern 4 (Step 7b) | If skipped, users have no in-app feedback for pending withdrawals — only the API response. Frontend example doesn't currently rely on a notification, so safe. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **PIN delivery — body vs header?**
    - What we know: Frontend example sends body (`examples/frontend-pages/withdrawals.tsx:67`). CONTEXT.md `<specifics>` mentions `x-withdrawal-pin` header.
    - What's unclear: Which is canonical.
-   - Recommendation: Ship body-only (matches example, matches Phase 2 PIN routes). If the planner disagrees, surface for a discuss-phase round-trip.
+   - **RESOLVED:** Ship body-only (matches example, matches Phase 2 PIN routes). Plan 04-04 implements `pin?: string` in Zod body schema; no header read.
 
 2. **`createNotification` inside Serializable tx — widen the helper's typing or call after commit?**
    - What we know: `notifications/index.ts:33` calls only `prisma.notification.create({...})` — structurally compatible with `TransactionClient`. The exported type is narrower than the runtime needs.
    - What's unclear: Whether widening the helper's signature is in scope for Phase 4 (file is "protected" per CLAUDE.md).
-   - Recommendation: Call AFTER commit (Pitfall 4 alternative) — the dedupe key keeps it at-most-once across retries. Defer the type-widening to a tiny Phase 6 cleanup task.
+   - **RESOLVED:** Call AFTER commit (Pitfall 4 alternative) — the dedupe key (`withdrawal-requested:${id}`) keeps it at-most-once across retries. Type-widening deferred to a future cleanup. Plan 04-04 dispatches post-commit.
 
 3. **`Withdrawal.idempotencyKey` — Phase 4 or follow-up?**
    - What we know: Phase 3 added `Order.idempotencyKey` in a Wave 0 schema task (1 column add, additive). The advisory lock + `requestedAt`-checking already prevent the racy double-spend class.
    - What's unclear: Whether ANY client in v1 will retry POSTs to `/api/withdrawals`. The frontend `api()` wrapper does not (CF-14).
-   - Recommendation: Defer. Note as a "follow-up patch" in the plan summary so it's not lost.
+   - **RESOLVED:** Defer. Frontend `api()` does not retry mutating verbs (CF-14), and the advisory lock prevents the double-spend race that idempotency-key would protect against. No schema delta this phase.
 
 4. **`R2_ENDPOINT` override env var — needed for Minio in dev?**
    - What we know: CONTEXT.md `<specifics>` lists only `R2_ACCOUNT_ID / R2_BUCKET / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY`. Minio uses a different endpoint (e.g. `http://localhost:9000`).
    - What's unclear: Whether to expose `R2_ENDPOINT` for local dev (overrides the canonical `https://${accountId}.r2.cloudflarestorage.com`).
-   - Recommendation: Add an OPTIONAL `R2_ENDPOINT` env var. If set, use it; otherwise fall back to the R2 URL pattern. Keep `R2_ACCOUNT_ID` required so the prod path stays explicit. Document in the `.env.example` comment block.
+   - **RESOLVED:** Add OPTIONAL `R2_ENDPOINT` env var. `r2-client.ts` uses it when set, falls back to the canonical R2 URL pattern otherwise. `R2_ACCOUNT_ID` stays required so the prod path is explicit. Documented in the Plan 04-01 `.env.example` block.
 
 ## Environment Availability
 

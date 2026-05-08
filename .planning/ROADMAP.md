@@ -75,7 +75,14 @@ Port `amadou-template` (Express 5 + Next.js 16 monorepo) into a single Next.js 1
   2. `GET /api/admin/outbox` and `GET /api/admin/email-queue` return filterable lists of OutboxEvent and EmailJob rows respectively (may be empty before Phase 5 data exists — that is expected); `GET /api/admin/rate-limits` returns current hit counters from Redis
   3. `POST /api/orders` with a valid amount (integer, smallest currency unit) creates an Order via the Bictorys `PaymentProvider` interface and returns the payment URL; circuit breaker trips after configured failure threshold and returns 503 with `PAYMENT_PROVIDER_UNAVAILABLE`
   4. `pnpm db:make-superadmin test@example.com` promotes the user and exits 0; running it against a non-existent email exits non-zero with a clear message
-**Plans**: TBD
+**Plans**: 7 plans
+  - [ ] 03-01-scaffold-migration-helpers-PLAN.md — Wave 0: Prisma migration (User.status + Order.idempotencyKey), paginate + per-userId rate-limit helpers, 10 RED test scaffolds + admin fixtures, [BLOCKING] schema push
+  - [ ] 03-02-admin-reads-users-orders-withdrawals-PLAN.md — Wave 1: GET /api/admin/users (list+detail), GET /api/admin/orders, GET /api/admin/withdrawals (LIST only)
+  - [ ] 03-03-admin-audit-log-me-and-rate-limit-PLAN.md — Wave 1: GET /api/admin/audit-log, GET /api/admin/me (capability list)
+  - [ ] 03-04-admin-visibility-outbox-email-rate-limits-PLAN.md — Wave 1: GET /api/admin/outbox (kind, not type), GET /api/admin/email-queue (bodyPreview <=200), GET /api/admin/rate-limits (7 buckets, 1000-key cap)
+  - [ ] 03-05-orders-create-with-circuit-breaker-PLAN.md — Wave 1: POST /api/orders with Idempotency-Key + lazy Bictorys provider + CircuitBreaker (PAY-01)
+  - [ ] 03-06-admin-mutations-role-status-cancel-PLAN.md — Wave 2: PATCH role (last-SUPERADMIN guard), PATCH status (ADMIN suspend/SUPERADMIN restore), POST withdrawal cancel (SUPERADMIN)
+  - [ ] 03-07-protected-edits-and-make-superadmin-PLAN.md — Wave 2: PROTECTED-FILE edits to login + refresh (SUSPENDED check) + make-superadmin CLI script (autonomous: false)
 **UI hint**: no
 **Out of scope (deferred)**: ORG-01..06 (Organizations routes) — kept as opt-in plumbing per CLAUDE.md "Multi-tenancy is opt-in"
 

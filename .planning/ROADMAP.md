@@ -120,7 +120,7 @@ Port `amadou-template` (Express 5 + Next.js 16 monorepo) into a single Next.js 1
   1. `pnpm test` runs all Vitest unit tests (auth, crypto, webhook/handler, withdrawals/lock, outbox/dispatcher, oauth/google, notifications/createNotification, admin/audit, payments/circuit-breaker) with zero failures; `vitest.config.ts` seeds `JWT_SECRET` and `ENCRYPTION_KEY` fixtures
   2. Auth happy-path smoke test (`fetch` against `localhost:3000`) covers signup → verify-email → me → logout and exits 0
   3. `tsx scripts/make-superadmin.ts test@example.com` and `tsx scripts/seed-dev.ts` both run without error against a local Neon/Postgres DB
-  4. `docker build -t amadou-monolith .` succeeds; `docker compose up -d` starts `db` + `redis` + `mailpit` + `minio` (no `backend` service); `docker run` of the built image serves `/api/health` returning 200
+  4. `docker build -f frontend/Dockerfile -t amadou-monolith .` succeeds; `docker compose up -d` starts `postgres` + `redis` + `mailpit` + `minio` (no `backend` service); `docker run` of the built image serves `/api/health` returning 200
   5. `CLAUDE.md` contains no references to Express, `backend/src/`, `express.json()`, or Express middleware ordering; `README.md` has a working quickstart section pointing at `frontend/src/app/api/`
 **Plans**: TBD
 

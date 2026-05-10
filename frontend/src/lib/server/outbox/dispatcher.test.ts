@@ -79,7 +79,9 @@ describe('drainOutbox (TEST-02)', () => {
     prismaMock.outboxEvent.updateMany.mockResolvedValue({ count: 1 } as never);
     prismaMock.outboxEvent.findUnique.mockResolvedValue(row as never);
     // Force the dispatch path to throw — createNotification rejects.
-    prismaMock.notification.create.mockRejectedValueOnce(new Error('notification provider down') as never);
+    prismaMock.notification.create.mockRejectedValueOnce(
+      new Error('notification provider down') as never,
+    );
     prismaMock.outboxEvent.update.mockResolvedValue({} as never);
 
     const stats = await drainOutbox({ prisma: prismaMock });

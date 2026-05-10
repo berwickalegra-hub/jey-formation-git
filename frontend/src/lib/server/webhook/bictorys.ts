@@ -12,10 +12,7 @@
 //      createWebhookHandler reads to dispatch onRefunded.
 import 'server-only';
 import type { WebhookProvider } from './handler';
-import {
-  createBictorysProvider,
-  type BictorysWebhookPayload,
-} from '../payments/bictorys';
+import { createBictorysProvider, type BictorysWebhookPayload } from '../payments/bictorys';
 
 export type { BictorysWebhookPayload };
 

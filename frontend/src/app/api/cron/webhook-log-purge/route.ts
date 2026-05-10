@@ -9,10 +9,7 @@ import { withLease } from '@/lib/server/leader-lease';
 import { prisma } from '@/lib/server/prisma';
 import { redis } from '@/lib/server/redis';
 import { createLogger } from '@/lib/server/logger';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 
 const log = createLogger();
 const LEASE_TTL_MS = 60_000; // ~2 × maxDuration (Pitfall 3)

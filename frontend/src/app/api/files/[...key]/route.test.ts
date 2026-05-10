@@ -113,9 +113,8 @@ describe('GET /api/files/[...key] (RED — Wave 1 will turn these green)', () =>
       key: 'user-1/x.jpg',
     });
     vi.stubEnv('R2_ACCOUNT_ID', '');
-    const { getR2Client, StorageNotConfiguredError } = await import(
-      '@/lib/server/upload/r2-client'
-    );
+    const { getR2Client, StorageNotConfiguredError } =
+      await import('@/lib/server/upload/r2-client');
     (getR2Client as unknown as Mock).mockImplementationOnce(() => {
       throw new StorageNotConfiguredError();
     });

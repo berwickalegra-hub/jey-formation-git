@@ -3,16 +3,9 @@ export const runtime = 'nodejs';
 import { NextResponse, type NextRequest } from 'next/server';
 import { GetObjectCommand, NoSuchKey } from '@aws-sdk/client-s3';
 import { requireAuth } from '@/lib/server/middleware';
-import {
-  getR2Client,
-  getR2Bucket,
-  StorageNotConfiguredError,
-} from '@/lib/server/upload/r2-client';
+import { getR2Client, getR2Bucket, StorageNotConfiguredError } from '@/lib/server/upload/r2-client';
 import { prisma } from '@/lib/server/prisma';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 
 /**
  * GET /api/files/[...key] — owner-gated R2 stream proxy.

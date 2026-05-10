@@ -44,10 +44,13 @@ describe('createNotification (TEST-02)', () => {
 
   it('returns null silently when prisma throws P2002 (dedupeKey collision)', async () => {
     // Duck-typed P2002 — matches the source's `'code' in err && err.code === 'P2002'` check.
-    const p2002 = Object.assign(new Error('Unique constraint failed on the fields: (`dedupeKey`)'), {
-      code: 'P2002',
-      name: 'PrismaClientKnownRequestError',
-    });
+    const p2002 = Object.assign(
+      new Error('Unique constraint failed on the fields: (`dedupeKey`)'),
+      {
+        code: 'P2002',
+        name: 'PrismaClientKnownRequestError',
+      },
+    );
     prismaMock.notification.create.mockRejectedValueOnce(p2002 as never);
 
     const out = await createNotification(prismaMock, baseInput);

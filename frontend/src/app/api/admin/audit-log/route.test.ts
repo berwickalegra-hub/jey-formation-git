@@ -41,7 +41,16 @@ function makeGet(url: string): NextRequest {
   return new NextRequest(url, { method: 'GET' });
 }
 
-function row(overrides: Partial<{ id: string; createdAt: Date; actorId: string; action: string; targetType: string | null; targetId: string | null }> = {}) {
+function row(
+  overrides: Partial<{
+    id: string;
+    createdAt: Date;
+    actorId: string;
+    action: string;
+    targetType: string | null;
+    targetId: string | null;
+  }> = {},
+) {
   const createdAt = overrides.createdAt ?? new Date('2026-05-01T00:00:00Z');
   return {
     id: overrides.id ?? 'a-1',
@@ -65,7 +74,10 @@ beforeEach(() => {
 describe('GET /api/admin/audit-log [Wave 1]', () => {
   it('returns 401 / 403 when requireAdmin bails (forwards the response)', async () => {
     mockRequireAdmin.mockResolvedValueOnce(
-      NextResponse.json({ error: 'ADMIN_REQUIRED', message: 'Admin access required' }, { status: 403 }),
+      NextResponse.json(
+        { error: 'ADMIN_REQUIRED', message: 'Admin access required' },
+        { status: 403 },
+      ),
     );
     const res = await GET(makeGet('http://test/api/admin/audit-log'));
     expect(res.status).toBe(403);

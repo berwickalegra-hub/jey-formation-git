@@ -48,18 +48,12 @@ import { prisma } from '@/lib/server/prisma';
 
 import { lockUserTx } from '@/lib/server/withdrawals/lock';
 import { createDefaultBalanceComputer } from '@/lib/server/withdrawals/balance';
-import {
-  loadGuardConfigFromEnv,
-  validateWithdrawalRequest,
-} from '@/lib/server/withdrawals/guards';
+import { loadGuardConfigFromEnv, validateWithdrawalRequest } from '@/lib/server/withdrawals/guards';
 import { verifyPin } from '@/lib/server/auth/pin';
 import { createNotification } from '@/lib/server/notifications';
 
 import { clampLimit, decodeCursor, encodeCursor } from '@/lib/server/pagination/paginate';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 
 // ───────────────────────────────────────────────────────────────────────
 // Request body schema (D-WD-METHOD-01 + CLAUDE.md "integer smallest unit")
@@ -80,9 +74,7 @@ const Body = z.object({
   currency: z.literal('XOF').default('XOF'),
   destination: z.object({
     method: z.enum(['WAVE', 'ORANGE_MONEY', 'MTN_MOMO']),
-    phone: z
-      .string()
-      .regex(/^\+\d{10,15}$/, 'phone must be E.164 (e.g. +221XXXXXXXX)'),
+    phone: z.string().regex(/^\+\d{10,15}$/, 'phone must be E.164 (e.g. +221XXXXXXXX)'),
     accountName: z.string().max(120).optional(),
   }),
   pin: z.string().min(4).max(12).optional(),
@@ -277,13 +269,8 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
     const items = hasMore ? rows.slice(0, limit) : rows;
     const last = items[items.length - 1];
     const nextCursor =
-      hasMore && last
-        ? encodeCursor({ createdAt: last.requestedAt, id: last.id })
-        : null;
+      hasMore && last ? encodeCursor({ createdAt: last.requestedAt, id: last.id }) : null;
 
-    return NextResponse.json(
-      { items, nextCursor },
-      { headers: { 'x-request-id': ctx.requestId } },
-    );
+    return NextResponse.json({ items, nextCursor }, { headers: { 'x-request-id': ctx.requestId } });
   });
 }

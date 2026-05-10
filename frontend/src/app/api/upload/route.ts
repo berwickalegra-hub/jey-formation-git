@@ -26,16 +26,9 @@ import { NextResponse, type NextRequest } from 'next/server';
 
 import { verifyCsrf } from '@/lib/server/auth';
 import { requireAuth } from '@/lib/server/middleware';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 import { prisma } from '@/lib/server/prisma';
-import {
-  StorageNotConfiguredError,
-  getR2Bucket,
-  getR2Client,
-} from '@/lib/server/upload/r2-client';
+import { StorageNotConfiguredError, getR2Bucket, getR2Client } from '@/lib/server/upload/r2-client';
 import { verifyMagicBytes } from '@/lib/server/upload/sniff';
 
 export async function POST(req: NextRequest): Promise<NextResponse> {

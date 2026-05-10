@@ -145,9 +145,7 @@ export async function main(): Promise<number> {
     return 1;
   } finally {
     // Cleanup test user so re-runs don't accumulate.
-    await prisma.user
-      .deleteMany({ where: { email: TEST_EMAIL } })
-      .catch(() => undefined);
+    await prisma.user.deleteMany({ where: { email: TEST_EMAIL } }).catch(() => undefined);
     await prisma.$disconnect();
   }
 }

@@ -122,7 +122,10 @@ describe('GET /api/admin/me [Wave 1]', () => {
 
   it('GET 403 when authenticated as USER (requireAdmin returns 403 ADMIN_REQUIRED)', async () => {
     mockRequireAdmin.mockResolvedValueOnce(
-      NextResponse.json({ error: 'ADMIN_REQUIRED', message: 'Admin access required' }, { status: 403 }),
+      NextResponse.json(
+        { error: 'ADMIN_REQUIRED', message: 'Admin access required' },
+        { status: 403 },
+      ),
     );
     const res = await GET(makeGet());
     expect(res.status).toBe(403);
@@ -169,9 +172,7 @@ describe('source invariants', () => {
     // listing the SUPERADMIN-only capabilities doesn't inflate the count
     // (the acceptance check is "appears in SUPERADMIN list only, not ADMIN").
     const raw = fs.readFileSync(path.join(__dirname, 'route.ts'), 'utf8');
-    const code = raw
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-      .replace(/^\s*\/\/.*$/gm, '');
+    const code = raw.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
     const occurrences = (s: string) => (code.match(new RegExp(`'${s}'`, 'g')) ?? []).length;
     expect(occurrences('users:role')).toBe(1);
     expect(occurrences('withdrawals:cancel')).toBe(1);

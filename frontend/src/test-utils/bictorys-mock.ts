@@ -40,11 +40,7 @@ export function bictorysFixture(opts: BictorysFixtureOpts = {}): {
   const rawBody = Buffer.from(JSON.stringify(payload));
   const ts = String(opts.timestamp ?? Date.now());
   const secret = opts.webhookSecret ?? 'test-webhook-secret';
-  const sig = crypto
-    .createHmac('sha256', secret)
-    .update(`${ts}.`)
-    .update(rawBody)
-    .digest('hex');
+  const sig = crypto.createHmac('sha256', secret).update(`${ts}.`).update(rawBody).digest('hex');
   return {
     rawBody,
     headers: {

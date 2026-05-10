@@ -36,9 +36,7 @@ export const POST = createWebhookHandler({
   provider: bictorysWebhookProvider,
 
   async onPaid(payload, tx) {
-    const externalRef = String(
-      payload.charge_id ?? payload.chargeId ?? payload.id ?? '',
-    );
+    const externalRef = String(payload.charge_id ?? payload.chargeId ?? payload.id ?? '');
     if (!externalRef) return {}; // no id to correlate
 
     const order = await tx.order.findFirst({
@@ -46,9 +44,7 @@ export const POST = createWebhookHandler({
     });
     if (!order) return {}; // unknown charge — log + drop (no DB row to update)
 
-    const paymentMethod = payload.payment_method
-      ? String(payload.payment_method)
-      : null;
+    const paymentMethod = payload.payment_method ? String(payload.payment_method) : null;
 
     await tx.order.update({
       where: { id: order.id },
@@ -89,9 +85,7 @@ export const POST = createWebhookHandler({
   },
 
   async onRefunded(payload, tx) {
-    const externalRef = String(
-      payload.charge_id ?? payload.chargeId ?? payload.id ?? '',
-    );
+    const externalRef = String(payload.charge_id ?? payload.chargeId ?? payload.id ?? '');
     if (!externalRef) return {};
     const order = await tx.order.findFirst({
       where: { providerChargeId: externalRef },
@@ -108,9 +102,7 @@ export const POST = createWebhookHandler({
   },
 
   async onFailed(payload, tx) {
-    const externalRef = String(
-      payload.charge_id ?? payload.chargeId ?? payload.id ?? '',
-    );
+    const externalRef = String(payload.charge_id ?? payload.chargeId ?? payload.id ?? '');
     if (!externalRef) return {};
     const order = await tx.order.findFirst({
       where: { providerChargeId: externalRef },

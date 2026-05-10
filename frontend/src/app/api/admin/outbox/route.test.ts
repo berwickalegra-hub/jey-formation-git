@@ -131,9 +131,7 @@ describe('/api/admin/outbox [Wave 1]', () => {
     ] as never);
 
     await GET(
-      makeGet(
-        'http://test/api/admin/outbox?status=PENDING&kind=email.payment_confirmation',
-      ),
+      makeGet('http://test/api/admin/outbox?status=PENDING&kind=email.payment_confirmation'),
     );
     const args = prismaMock.outboxEvent.findMany.mock.calls[0]?.[0];
     expect(args?.where?.kind).toBe('email.payment_confirmation');

@@ -9,10 +9,7 @@ import { withLease } from '@/lib/server/leader-lease';
 import { redis } from '@/lib/server/redis';
 import { getEmailQueue } from '@/lib/server/queues/email-queue-singleton';
 import { createLogger } from '@/lib/server/logger';
-import {
-  makeRequestContext,
-  withRequestContext,
-} from '@/lib/server/observability/request-context';
+import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 
 const log = createLogger();
 const BATCH_SIZE = 100; // D-08

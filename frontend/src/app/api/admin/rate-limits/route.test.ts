@@ -92,9 +92,7 @@ describe('/api/admin/rate-limits [Wave 1]', () => {
       'lockout',
     ]);
 
-    const login = body.buckets.find(
-      (b: { bucket: string }) => b.bucket === 'auth:login',
-    );
+    const login = body.buckets.find((b: { bucket: string }) => b.bucket === 'auth:login');
     expect(login.totalKeys).toBe(2);
     // top10 stripped of the prefix and sorted DESC by hits
     expect(login.top10[0].key).toBe('e:bar@example.com');
@@ -103,9 +101,7 @@ describe('/api/admin/rate-limits [Wave 1]', () => {
     expect(login.top10[1].hits).toBe(5);
 
     // lockout bucket scans `auth:lockout:` (NOT under rl: prefix)
-    const lockout = body.buckets.find(
-      (b: { bucket: string }) => b.bucket === 'lockout',
-    );
+    const lockout = body.buckets.find((b: { bucket: string }) => b.bucket === 'lockout');
     expect(lockout.totalKeys).toBe(1);
     expect(lockout.top10[0].key).toBe('foo@example.com');
   });
@@ -121,9 +117,7 @@ describe('/api/admin/rate-limits [Wave 1]', () => {
 
     const res = await GET(makeGet());
     const body = await res.json();
-    const login = body.buckets.find(
-      (b: { bucket: string }) => b.bucket === 'auth:login',
-    );
+    const login = body.buckets.find((b: { bucket: string }) => b.bucket === 'auth:login');
     expect(login.totalKeys).toBe(1000);
     expect(login.truncated).toBe(true);
     // Top 10 length capped
@@ -157,9 +151,7 @@ describe('/api/admin/rate-limits [Wave 1]', () => {
 
     const res = await GET(makeGet());
     const body = await res.json();
-    const login = body.buckets.find(
-      (b: { bucket: string }) => b.bucket === 'auth:login',
-    );
+    const login = body.buckets.find((b: { bucket: string }) => b.bucket === 'auth:login');
     expect(login.totalKeys).toBe(5);
     // Sorted DESC by hits — 100, 50, 25, 10, 3
     expect(login.top10.map((e: Top10Like) => e.hits)).toEqual([100, 50, 25, 10, 3]);
@@ -169,9 +161,7 @@ describe('/api/admin/rate-limits [Wave 1]', () => {
       expect(entry).toHaveProperty('hits');
       expect(entry).toHaveProperty('expiresAt');
       // expiresAt is an ISO string when ttl > 0 (mockRedis default ttl=60)
-      expect(typeof entry.expiresAt === 'string' || entry.expiresAt === null).toBe(
-        true,
-      );
+      expect(typeof entry.expiresAt === 'string' || entry.expiresAt === null).toBe(true);
     }
     // Top10 keys are stripped of the bucket prefix
     expect(login.top10[0].key).toBe('e:d');
@@ -184,9 +174,7 @@ describe('/api/admin/rate-limits [Wave 1]', () => {
 
     const res = await GET(makeGet());
     const body = await res.json();
-    const signup = body.buckets.find(
-      (b: { bucket: string }) => b.bucket === 'auth:signup',
-    );
+    const signup = body.buckets.find((b: { bucket: string }) => b.bucket === 'auth:signup');
     expect(signup.totalKeys).toBe(0);
     expect(signup.top10).toEqual([]);
   });

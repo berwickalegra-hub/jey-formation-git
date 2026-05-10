@@ -30,7 +30,7 @@ pnpm workspace — run from repo root unless noted. The root `package.json` is a
 | Lint | `pnpm lint` |
 | Format | `pnpm format` (or `pnpm format:check`) |
 
-Integration tests are deferred to Phase 4 (`pnpm --filter frontend run test:integration` is currently a no-op stub).
+Integration tests are deferred (no formal harness in v1) — `pnpm smoke:auth` provides a manual UAT script for the auth happy path against a running `pnpm dev`. See README.
 
 **Before committing:** `pnpm format && pnpm lint && pnpm typecheck && pnpm test` — must all pass.
 
@@ -51,7 +51,7 @@ Integration tests are deferred to Phase 4 (`pnpm --filter frontend run test:inte
 
 **Frontend `api()` wrapper** ([frontend/src/lib/api.ts](frontend/src/lib/api.ts)): auto-refreshes on 401 with a single-flight lock, attaches CSRF, and **only retries `GET`/`HEAD` on network errors** — never mutating verbs (would risk duplicate charges/withdrawals). `ApiError.code` exposes the server's stable error code (e.g. `PIN_REQUIRED`, `INSUFFICIENT_BALANCE`) — switch on `.code`, not on `.message`.
 
-**Webhook idempotency + outbox:** [frontend/src/lib/server/webhook/handler.ts](frontend/src/lib/server/webhook/handler.ts) returns `(NextRequest) => Promise<NextResponse>` and reads the raw body via `await req.arrayBuffer()` (preserves byte-identical HMAC). The handler runs a `Serializable` Prisma transaction with `WebhookLog @@unique([externalId, eventType])` for dedup. Side-effects (emails, notifications) must NOT run as a postCommit closure — they go to the **outbox** ([frontend/src/lib/server/outbox/](frontend/src/lib/server/outbox/)) inside the same tx, drained by a Vercel Cron route (Phase 6, see STATUS.md M6).
+**Webhook idempotency + outbox:** [frontend/src/lib/server/webhook/handler.ts](frontend/src/lib/server/webhook/handler.ts) returns `(NextRequest) => Promise<NextResponse>` and reads the raw body via `await req.arrayBuffer()` (preserves byte-identical HMAC). The handler runs a `Serializable` Prisma transaction with `WebhookLog @@unique([externalId, eventType])` for dedup. Side-effects (emails, notifications) must NOT run as a postCommit closure — they go to the **outbox** ([frontend/src/lib/server/outbox/](frontend/src/lib/server/outbox/)) inside the same tx, drained by a Vercel Cron route ([frontend/src/app/api/cron/outbox-drain/route.ts](frontend/src/app/api/cron/outbox-drain/route.ts), every 1 min).
 
 **Withdrawals are race-free:** the route runs guards + PENDING insert inside a `Serializable` Prisma transaction guarded by `pg_advisory_xact_lock(hashtext(userId))` ([frontend/src/lib/server/withdrawals/lock.ts](frontend/src/lib/server/withdrawals/lock.ts)). Two concurrent attempts for the same user serialize on the lock, so the second one sees the first's PENDING reservation and is correctly rejected as `INSUFFICIENT_BALANCE`.
 
@@ -63,7 +63,7 @@ Integration tests are deferred to Phase 4 (`pnpm --filter frontend run test:inte
 
 **Multi-tenancy is opt-in.** [frontend/src/lib/server/middleware/require-org-role.ts](frontend/src/lib/server/middleware/require-org-role.ts) ships role types + rank helpers (`OWNER` > `ADMIN` > `MEMBER`). Default project surface stays user-owned (`Order.userId`, `Withdrawal.userId`). Apps that need orgs add `organizationId String?` on their domain models case by case and gate routes via `requireOrgRole('ADMIN', 'orgId')` from the middleware HOFs. Owner promotion is transactional (3 ops in a single tx). Non-members get **404, not 403**, to avoid leaking org existence.
 
-**Admin back-office** — [frontend/src/lib/server/admin/audit.ts](frontend/src/lib/server/admin/audit.ts) + [frontend/src/lib/server/middleware/require-admin.ts](frontend/src/lib/server/middleware/require-admin.ts). App-wide role on `User` (`USER` < `ADMIN` < `SUPERADMIN`). Phase-5 endpoints under `/api/admin/*` cover users (search/detail/role-change), orders (filter), withdrawals (filter + manual cancel), audit-log (paginated/filterable), and `/me` (admin probe). Every mutation calls `logAdminAction(prisma, {...})` → `AdminAction` row so we can answer "who did what when" during incidents. Bootstrap the first SUPERADMIN with `pnpm db:make-superadmin <email>` (script lives at `frontend/scripts/make-superadmin.ts` once Phase 7 lands — see STATUS.md M7).
+**Admin back-office** — [frontend/src/lib/server/admin/audit.ts](frontend/src/lib/server/admin/audit.ts) + [frontend/src/lib/server/middleware/require-admin.ts](frontend/src/lib/server/middleware/require-admin.ts). App-wide role on `User` (`USER` < `ADMIN` < `SUPERADMIN`). Phase-5 endpoints under `/api/admin/*` cover users (search/detail/role-change), orders (filter), withdrawals (filter + manual cancel), audit-log (paginated/filterable), and `/me` (admin probe). Every mutation calls `logAdminAction(prisma, {...})` → `AdminAction` row so we can answer "who did what when" during incidents. Bootstrap the first SUPERADMIN with `pnpm db:make-superadmin <email>` (the script lives at [frontend/scripts/make-superadmin.ts](frontend/scripts/make-superadmin.ts)).
 
 ## Files Claude must NOT modify (battle-tested)
 
@@ -89,6 +89,9 @@ If a change is genuinely required in any of these, surface a brief "I am about t
 - [frontend/src/lib/server/withdrawals/guards.ts](frontend/src/lib/server/withdrawals/guards.ts) — add KYC / tier / AML guards (project-specific, not shipped)
 - [frontend/src/lib/server/oauth/](frontend/src/lib/server/oauth/) — add new OAuth providers (`github.ts`, `apple.ts`, …) modeled on `google.ts`; add a sibling route handler under `frontend/src/app/api/auth/oauth/<provider>/{start,callback}/route.ts`
 - [frontend/src/app/](frontend/src/app/) — your pages, your design (including `/admin/*` if you keep the back-office)
+- `frontend/src/lib/server/cron/` — extend with `verifyCronSecret(req)` consumers; add new cron route handlers under `frontend/src/app/api/cron/<name>/route.ts` mirroring the 5 existing crons; ALL cron handlers must verify `Authorization: Bearer ${CRON_SECRET}` via the shared `verifyCronSecret` helper
+- [frontend/src/lib/server/webhook/bictorys.ts](frontend/src/lib/server/webhook/bictorys.ts) — webhook provider re-export with the `kind: 'refunded'` upgrade; replace per project (Phase 5 default); the underlying `webhook/handler.ts` stays PROTECTED
+- [frontend/src/lib/server/orders/expire.ts](frontend/src/lib/server/orders/expire.ts) — `expirePendingOrders({ prisma, batchSize? })`: extend per project to add post-expiration side-effects (e.g. notify the user, write a refund job to outbox); the cron route at `app/api/cron/order-expiration/route.ts` calls this
 
 ## Critical invariants
 

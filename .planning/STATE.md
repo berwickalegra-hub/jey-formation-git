@@ -4,13 +4,13 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 6 planned (4 plans)
-last_updated: "2026-05-10T04:55:24.896Z"
-last_activity: 2026-05-08
+last_updated: "2026-05-10T07:17:38.989Z"
+last_activity: 2026-05-10
 progress:
   total_phases: 8
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 33
-  completed_plans: 33
+  completed_plans: 37
   percent: 100
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-05-07)
 
 **Core value:** Cloning this repo and filling `.env` produces a working Next.js app on Vercel with the same security invariants and feature parity as `amadou-template` — auth, payments, admin, webhooks, crons all wired, headless and ready to graft a UI on top.
-**Current focus:** Phase 05 — webhooks-and-vercel-cron
+**Current focus:** Phase 06 — tests-scripts-docker-docs
 
 ## Current Position
 
-Phase: 6
+Phase: 7
 Plan: Not started
-Status: Executing Phase 05
-Last activity: 2026-05-08
+Status: Executing Phase 06
+Last activity: 2026-05-10
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -36,7 +36,7 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity:**
 
-- Total plans completed: 28
+- Total plans completed: 32
 - Average duration: — min
 - Total execution time: 0.0 hours
 
@@ -49,6 +49,7 @@ Progress: [░░░░░░░░░░] 0%
 | 03 | 7 | - | - |
 | 04 | 4 | - | - |
 | 05 | 8 | - | - |
+| 06 | 4 | - | - |
 
 **Recent Trend:**
 

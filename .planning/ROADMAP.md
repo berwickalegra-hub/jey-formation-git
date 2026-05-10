@@ -123,10 +123,10 @@ Port `amadou-template` (Express 5 + Next.js 16 monorepo) into a single Next.js 1
   4. `docker build -f frontend/Dockerfile -t amadou-monolith .` succeeds; `docker compose up -d` starts `postgres` + `redis` + `mailpit` + `minio` (no `backend` service); `docker run` of the built image serves `/api/health` returning 200
   5. `CLAUDE.md` contains no references to Express, `backend/src/`, `express.json()`, or Express middleware ordering; `README.md` has a working quickstart section pointing at `frontend/src/app/api/`
 **Plans**: 4 plans
-  - [ ] 06-01-tests-scripts-and-docker-uat-PLAN.md — Wave 0: 7 TEST-02 lib tests + smoke-auth.ts + seed-dev refactor + 2 doc tripwires + Docker UAT
-  - [ ] 06-02-claude-md-cleanup-PLAN.md — Wave 1: CLAUDE.md targeted edits (3 stale forward-refs + Phase 5 surface appendix)
-  - [ ] 06-03-readme-rewrite-and-roadmap-fix-PLAN.md — Wave 1: README.md full rewrite (7-section outline) + ROADMAP success-criterion #4 docker flag fix
-  - [ ] 06-04-status-md-refresh-PLAN.md — Wave 1: STATUS.md ✅ DONE Phase 2-5 entries + 🔨 TODO reduction to Phase 6/7
+  - [x] 06-01-tests-scripts-and-docker-uat-PLAN.md — Wave 0: 7 TEST-02 lib tests + smoke-auth.ts + seed-dev refactor + 2 doc tripwires + Docker UAT
+  - [x] 06-02-claude-md-cleanup-PLAN.md — Wave 1: CLAUDE.md targeted edits (3 stale forward-refs + Phase 5 surface appendix)
+  - [x] 06-03-readme-rewrite-and-roadmap-fix-PLAN.md — Wave 1: README.md full rewrite (7-section outline) + ROADMAP success-criterion #4 docker flag fix
+  - [x] 06-04-status-md-refresh-PLAN.md — Wave 1: STATUS.md ✅ DONE Phase 2-5 entries + 🔨 TODO reduction to Phase 6/7
 
 ### Phase 7: Final Pass
 **Goal**: All quality gates pass and the starter is taggable as v1

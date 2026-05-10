@@ -6,6 +6,10 @@
 //
 // Idempotent — uses upsert keyed on email, so running multiple times
 // does not duplicate rows.
+//
+// SCRIPT-01 refactor: exports `main(args, deps)` so tests can inject a
+// mocked PrismaClient (no DB connection at module import time). The CLI
+// guard at the bottom mirrors `make-superadmin.ts:85-92`.
 
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
@@ -21,13 +25,19 @@ const SEED_USERS = [
   },
 ] as const;
 
-async function main() {
+interface SeedDeps {
+  // Injectable for tests — defaults to a freshly-instantiated PrismaClient
+  // when called as a CLI.
+  prisma?: PrismaClient;
+}
+
+export async function main(_args: string[] = [], deps: SeedDeps = {}): Promise<void> {
   if (process.env.NODE_ENV === 'production') {
     console.error('Refusing to run seed-dev in production.');
     process.exit(1);
   }
 
-  const prisma = new PrismaClient();
+  const prisma = deps.prisma ?? new PrismaClient();
   try {
     for (const seed of SEED_USERS) {
       const passwordHash = await bcrypt.hash(seed.password, 12);
@@ -47,11 +57,21 @@ async function main() {
     }
     console.log('\nLogin with the password from this file (do NOT use these in prod).');
   } finally {
-    await prisma.$disconnect();
+    // Only disconnect the real client; tests pass their own mock and close
+    // it themselves.
+    if (!deps.prisma) {
+      await prisma.$disconnect();
+    }
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+// CLI entrypoint guard — only run when invoked as a script, not when
+// imported by tests.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main()
+    .then(() => process.exit(0))
+    .catch((err) => {
+      console.error(err);
+      process.exit(1);
+    });
+}

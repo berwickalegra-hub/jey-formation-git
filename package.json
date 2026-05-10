@@ -22,6 +22,7 @@
     "db:migrate:status": "pnpm --filter frontend run db:migrate:status",
     "db:studio": "pnpm --filter frontend run db:studio",
     "db:make-superadmin": "pnpm --filter frontend run db:make-superadmin",
+    "smoke:auth": "pnpm --filter frontend run smoke:auth",
     "prepare": "husky"
   },
   "lint-staged": {

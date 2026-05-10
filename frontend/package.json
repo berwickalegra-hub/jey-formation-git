@@ -18,6 +18,7 @@
     "db:studio": "prisma studio",
     "db:make-superadmin": "tsx --env-file=.env scripts/make-superadmin.ts",
     "seed:dev": "tsx --env-file=.env scripts/seed-dev.ts",
+    "smoke:auth": "tsx --env-file=.env.local scripts/smoke-auth.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

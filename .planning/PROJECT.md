@@ -57,6 +57,18 @@ Cloning this repo and filling in `.env` produces a working Next.js app on Vercel
 - ✓ **CRON-07**: `frontend/vercel.json` declares all 5 cron schedules verbatim per D-12 (`*/1 * * * *` × 2, `0 * * * *`, `*/5 * * * *`, `0 0 * * *`); per-route `maxDuration` lives in each `route.ts` (60s for drainers, 30s for the others). Tripwire test at `lib/server/observability/vercel-json-shape.test.ts` cross-checks every schedule path against an existing `route.ts` file. **508/508 full-repo tests green** at phase close.
 - ⏳ **3 human-UAT items deferred** in 05-VERIFICATION.md (Vercel dashboard ingests vercel.json at deploy; end-to-end Bictorys sandbox webhook with HMAC + replay + tampering; manual `curl` of all 5 cron routes against deployed app)
 
+#### Validated in Phase 6 (Tests, Scripts, Docker, Docs, 2026-05-10)
+
+- ✓ **TEST-01**: `frontend/vitest.config.ts` exports `setupFiles: ['./vitest.setup.ts']` seeding `JWT_SECRET` + `ENCRYPTION_KEY` fixtures (already shipped Phase 1 D-27; cross-referenced by Phase 6).
+- ✓ **TEST-02**: Security-critical lib unit tests shipped — 7 NEW gap-fill tests (`crypto`, `withdrawals/lock`, `outbox/dispatcher`, `oauth/google`, `notifications/createNotification`, `admin/audit`, `payments/circuit-breaker`) joined the existing `auth`/`webhook/handler` adjacent coverage. **559/559 full-repo Vitest GREEN**, lint + typecheck clean.
+- ✓ **TEST-03**: `frontend/scripts/smoke-auth.ts` (162 LOC) ships an env-guarded `tsx`-runnable smoke against `localhost:3000` — signup → DB-peek verification code → `/verify-email` → `/me` → `/logout` with cookie-jar + cleanup `finally`. Exposed as `pnpm smoke:auth` at root and frontend.
+- ✓ **SCRIPT-01**: `frontend/scripts/make-superadmin.ts` (Phase 3) + refactored `frontend/scripts/seed-dev.ts` (Phase 6: now `export main(args, deps)` + CLI guard) both runnable via `tsx`. Companion tests `make-superadmin.test.ts` + new `seed-dev.test.ts` cover idempotency + NODE_ENV=production refusal. Root `pnpm seed:dev` + `pnpm db:make-superadmin` proxies in `package.json`.
+- ✓ **DOCKER-01** (static): `frontend/Dockerfile` is multi-stage (Node 20 builder runs `pnpm build`; runtime stage runs `node frontend/server.js` as user `app`). `docker-compose.yml` has 4 services (postgres, redis, mailpit, minio) — no `backend` service. **Build/run UAT deferred to Phase 7 HUMAN-UAT** (no Docker on Phase 6 host).
+- ✓ **DOC-01**: `CLAUDE.md` cleaned of stale Express forward-refs; route inventory + protected-file list refreshed to include Phase 4/5 surfaces (uploads, files, withdrawals, webhooks/bictorys, 5 cron routes, cron/auth, webhook/bictorys, orders/expire). Tripwire `frontend/src/lib/server/observability/claude-md-shape.test.ts` (6/6 GREEN) locks the no-Express invariant in CI.
+- ✓ **DOC-02**: `README.md` rewritten to a 7-section monolith outline (what/quickstart/env reference/route inventory/smoke test/deploy-to-Vercel/out-of-scope). Tripwire `readme-shape.test.ts` (6/6 GREEN, including the formerly-RED `pnpm smoke:auth` assertion now passing) locks the public surface.
+- ✓ **ENV-01**: `CRON_SECRET=""` documented in `frontend/.env.example` with `openssl rand -base64 32` hint (already shipped Phase 0 OPS-04; cross-referenced by Phase 6).
+- ⏳ **3 human-UAT items deferred** in 06-VERIFICATION.md (Docker build + `/api/health` probe; smoke-auth.ts runtime against running `pnpm dev`; tsx scripts runtime against live Postgres) — all carry forward to Phase 7 final-pass.
+
 ### Active
 
 <!-- Remaining port surface (M3–M8 per STATUS.md) plus monolith-specific work. Each is a hypothesis until shipped. -->
@@ -64,15 +76,6 @@ Cloning this repo and filling in `.env` produces a working Next.js app on Vercel
 **Domain routes**
 - [ ] **PAY-01**: Port `orders` route (Bictorys charge via `PaymentProvider` interface, single-instance circuit breaker)
 - [ ] **ADMIN-01**: Port the 9 admin endpoints (users search/detail/role-change, orders filter, withdrawals filter + manual cancel, audit-log paginated, `/me`) — every mutation MUST call `logAdminAction`
-
-**Tooling, tests, distribution**
-
-- [ ] **TEST-01**: Add `vitest.config.ts` with `setupFiles` for `JWT_SECRET` / `ENCRYPTION_KEY` fixtures
-- [ ] **TEST-02**: Port the security-critical lib tests from the template — `auth`, `crypto`, `webhook handler`, `withdrawals/lock`, `outbox/dispatcher`, `oauth/google`, `notifications/createNotification`, `admin/audit`, `payments/circuit-breaker`. Routes get smoke tests via `fetch` against a local Next server.
-- [ ] **SCRIPT-01**: Port `make-superadmin` and `seed-dev` scripts (runnable via `tsx`, importing from `lib/server/prisma.ts`)
-- [ ] **DOCKER-01**: Update `docker-compose.yml` to drop the `backend` service (keep `db` + `redis` + `mailpit` + `minio`); add a single-service `Dockerfile` running `next start`
-- [ ] **DOC-01**: Rewrite `CLAUDE.md` and `README.md` to reflect the Next.js monolith architecture (no Express middleware-order preamble, no separate backend boot)
-- [ ] **ENV-01**: Add `CRON_SECRET` to `.env.example` with `openssl rand -base64 32` hint
 
 ### Out of Scope
 
@@ -150,4 +153,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-05-08 after Phase 5 (Webhooks and Vercel Cron) completion*
+*Last updated: 2026-05-10 after Phase 6 (Tests, Scripts, Docker, Docs) completion*

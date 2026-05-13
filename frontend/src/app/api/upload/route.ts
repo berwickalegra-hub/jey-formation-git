@@ -22,6 +22,7 @@ export const runtime = 'nodejs';
 
 import { PutObjectCommand } from '@aws-sdk/client-s3';
 import { randomUUID } from 'node:crypto';
+import heicConvert from 'heic-convert';
 import { NextResponse, type NextRequest } from 'next/server';
 
 import { verifyCsrf } from '@/lib/server/auth';
@@ -29,7 +30,10 @@ import { requireAuth } from '@/lib/server/middleware';
 import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 import { prisma } from '@/lib/server/prisma';
 import { StorageNotConfiguredError, getR2Bucket, getR2Client } from '@/lib/server/upload/r2-client';
+import { sanitizeFilename } from '@/lib/server/upload/sanitize-filename';
 import { verifyMagicBytes } from '@/lib/server/upload/sniff';
+
+const HEIC_MIMES = new Set(['image/heic', 'image/heif']);
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const ctx = makeRequestContext(req.headers);
@@ -89,7 +93,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // Read bytes only AFTER size + MIME gates (D-UP-04 — never allocate before
     // the cheap rejections fire).
     const ab = await file.arrayBuffer();
-    const buf = Buffer.from(ab);
+    let buf = Buffer.from(ab);
     const { match, sniffed } = verifyMagicBytes(buf, file.type);
     if (sniffed && !match) {
       return NextResponse.json(
@@ -100,7 +104,30 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // sniffed=false → operator allowed a MIME we don't sniff (e.g. text/csv).
     // sniff.ts logs a warn at boot for those; we accept here per its docs.
 
-    const ext = (file.name.split('.').pop() ?? 'bin').toLowerCase();
+    let storedMime = file.type;
+    let storedFilename = sanitizeFilename(file.name);
+
+    // HEIC/HEIF lacks broad browser support — transcode to JPEG so the proxy
+    // route can serve <img> tags without a client-side decoder.
+    if (HEIC_MIMES.has(storedMime)) {
+      try {
+        const converted = await heicConvert({
+          buffer: buf as unknown as ArrayBufferLike,
+          format: 'JPEG',
+          quality: 0.9,
+        });
+        buf = Buffer.from(converted);
+        storedMime = 'image/jpeg';
+        storedFilename = storedFilename.replace(/\.(heic|heif)$/i, '.jpg');
+      } catch {
+        return NextResponse.json(
+          { code: 'HEIC_CONVERSION_FAILED', message: 'HEIC conversion failed' },
+          { status: 502, headers: { 'x-request-id': ctx.requestId } },
+        );
+      }
+    }
+
+    const ext = (storedFilename.split('.').pop() ?? 'bin').toLowerCase();
     const key = `${auth.user.sub}/${randomUUID()}.${ext}`;
 
     try {
@@ -109,8 +136,8 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           Bucket: bucket,
           Key: key,
           Body: buf,
-          ContentType: file.type,
-          ContentLength: file.size,
+          ContentType: storedMime,
+          ContentLength: buf.length,
         }),
       );
     } catch {
@@ -124,9 +151,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       data: {
         userId: auth.user.sub,
         key,
-        filename: file.name,
-        mimeType: file.type,
-        sizeBytes: file.size,
+        filename: storedFilename,
+        mimeType: storedMime,
+        sizeBytes: buf.length,
       },
       select: {
         id: true,

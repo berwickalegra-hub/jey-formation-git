@@ -10,9 +10,10 @@ const inter = Inter({
   display: 'swap',
 });
 
+// Replace these with your app name + description per fork.
 export const metadata: Metadata = {
-  title: 'amadou-template',
-  description: 'Solo-dev SaaS template — Next.js + Express + Prisma + Auth',
+  title: 'amadou-monolith',
+  description: 'Headless Next.js 16 starter — auth, payments, admin, webhooks, cron.',
 };
 
 export default function RootLayout({

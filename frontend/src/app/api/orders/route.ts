@@ -76,7 +76,7 @@ const Body = z.object({
   customerEmail: z.string().email().optional(),
   customerPhone: z.string().optional(),
   customerName: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 const ORDER_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24h PENDING window

@@ -48,7 +48,7 @@ const limiter = createEmailLimiter(redis ? { redis } : {}, {
 });
 
 function formatIssues(err: z.ZodError) {
-  return err.errors.map((e) => ({ path: e.path.join('.'), message: e.message }));
+  return err.issues.map((e) => ({ path: e.path.join('.'), message: e.message }));
 }
 
 export async function POST(req: NextRequest): Promise<Response> {

@@ -1,0 +1,337 @@
+{
+  "$comment_1": "Declarative manifest of optional surfaces. Read by AI agents (per PRUNING.md) before atomically removing unused code. v1.2 corrects Prisma relation names against the live schema and removes implicit core references from cross_dependencies (the core layer is always present, so listing it as a dep was misleading).",
+  "$comment_2": "Field semantics: `owns` = files the feature owns and that get DELETED on prune. `surgical_edits` = files that get EDITED (not deleted) — typically dispatcher cases, schema relations, type unions. `prune_complexity` = 'safe' | 'with-care' | 'never' (signals the AI must read PRUNING.md carefully).",
+  "$comment_3": "`prune_complexity: never` means the codebase cannot be removed without breaking core flows (e.g. signup verification needs email-resend). The feature is still LISTED here because it has env vars / surgical_edits a fork-author should be aware of, but the AI MUST refuse a code-prune request and offer the configure-off (env-empty) alternative instead.",
+  "version": "1.2.0",
+  "starter": "amadou-monolith@v1.0",
+  "features": {
+    "payments-bictorys": {
+      "description": "Bictorys mobile-money payments (orders + charge + circuit breaker)",
+      "prune_complexity": "with-care",
+      "owns": {
+        "routes": ["api/orders", "api/pay-redirect"],
+        "libs": ["payments/", "orders/"],
+        "models": ["Order"],
+        "envVars": ["BICTORYS_API_KEY", "BICTORYS_API_URL", "COMMISSION_RATE_BP"]
+      },
+      "cross_dependencies": ["notifications", "email-resend", "webhooks-bictorys", "withdrawals"],
+      "surgical_edits": [
+        {
+          "file": "frontend/src/lib/server/outbox/dispatcher.ts",
+          "action": "remove case 'notification.payment_received' and case 'email.payment_confirmation'"
+        },
+        {
+          "file": "frontend/src/lib/server/outbox/types.ts",
+          "action": "remove NotificationPaymentReceivedEvent + EmailPaymentConfirmationEvent from OutboxEvent union"
+        },
+        {
+          "file": "frontend/src/lib/server/notifications/templates.ts",
+          "action": "remove paymentReceived template + its export"
+        }
+      ],
+      "cron_entries": ["order-expiration"],
+      "prisma_user_relations": ["orders Order[]"],
+      "outbox_event_kinds": ["notification.payment_received", "email.payment_confirmation"],
+      "tripwires_to_update": [
+        "frontend/src/lib/server/observability/vercel-json-shape.test.ts (remove order-expiration assertion)"
+      ]
+    },
+
+    "withdrawals": {
+      "description": "User withdrawals with PIN + advisory lock + balance guards",
+      "prune_complexity": "with-care",
+      "owns": {
+        "routes": ["api/withdrawals", "api/auth/withdrawal-pin"],
+        "libs": ["withdrawals/", "auth/pin.ts"],
+        "models": ["Withdrawal"],
+        "envVars": [
+          "WITHDRAWAL_MIN_AMOUNT",
+          "WITHDRAWAL_MAX_AMOUNT",
+          "WITHDRAWAL_DAILY_LIMIT",
+          "WITHDRAWAL_COOLDOWN_HOURS",
+          "WITHDRAWAL_REQUIRE_PIN",
+          "WITHDRAWAL_BALANCE_CHECK",
+          "BICTORYS_PRIVATE_KEY",
+          "BICTORYS_MERCHANT_SECRET_CODE"
+        ]
+      },
+      "cross_dependencies": ["payments-bictorys", "notifications", "admin-backoffice"],
+      "surgical_edits": [
+        {
+          "file": "frontend/src/lib/server/notifications/templates.ts",
+          "action": "remove withdrawalRequested template if defined"
+        }
+      ],
+      "cron_entries": [],
+      "prisma_user_relations": ["withdrawals Withdrawal[]", "withdrawalPinHash String?"],
+      "outbox_event_kinds": [],
+      "tripwires_to_update": []
+    },
+
+    "webhooks-bictorys": {
+      "description": "Bictorys webhook receiver with HMAC + replay window + outbox dispatch",
+      "prune_complexity": "safe",
+      "owns": {
+        "routes": ["api/webhooks/bictorys"],
+        "libs": ["webhook/"],
+        "models": ["WebhookLog"],
+        "envVars": ["BICTORYS_WEBHOOK_SECRET", "BICTORYS_WEBHOOK_REPLAY_WINDOW_MS"]
+      },
+      "cross_dependencies": ["payments-bictorys"],
+      "surgical_edits": [],
+      "cron_entries": ["webhook-log-purge"],
+      "prisma_user_relations": [],
+      "outbox_event_kinds": [],
+      "tripwires_to_update": [
+        "frontend/src/lib/server/observability/vercel-json-shape.test.ts (remove webhook-log-purge assertion)"
+      ]
+    },
+
+    "oauth-google": {
+      "description": "Sign-in with Google (arctic + PKCE)",
+      "prune_complexity": "safe",
+      "owns": {
+        "routes": ["api/auth/oauth/google/start", "api/auth/oauth/google/callback"],
+        "libs": ["oauth/"],
+        "models": ["OAuthAccount"],
+        "envVars": ["GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_REDIRECT_URI"]
+      },
+      "cross_dependencies": ["notifications"],
+      "surgical_edits": [],
+      "cron_entries": [],
+      "prisma_user_relations": ["oauthAccounts OAuthAccount[]"],
+      "outbox_event_kinds": [],
+      "tripwires_to_update": []
+    },
+
+    "uploads-r2": {
+      "description": "Authenticated multipart upload + owner-gated stream proxy (Cloudflare R2)",
+      "prune_complexity": "safe",
+      "owns": {
+        "routes": ["api/upload", "api/files/[...key]"],
+        "libs": ["upload/", "storage.ts"],
+        "models": ["FileUpload"],
+        "envVars": [
+          "R2_ACCOUNT_ID",
+          "R2_BUCKET",
+          "R2_ACCESS_KEY_ID",
+          "R2_SECRET_ACCESS_KEY",
+          "R2_ENDPOINT",
+          "R2_PUBLIC_URL",
+          "UPLOAD_ALLOWED_MIME",
+          "UPLOAD_MAX_BYTES"
+        ]
+      },
+      "cross_dependencies": [],
+      "surgical_edits": [],
+      "cron_entries": [],
+      "prisma_user_relations": ["uploads FileUpload[]"],
+      "outbox_event_kinds": [],
+      "tripwires_to_update": []
+    },
+
+    "email-resend": {
+      "description": "Durable email queue (EmailJob + Redis pointer) drained by cron, sent via Resend",
+      "prune_complexity": "never",
+      "$prune_complexity_reason": "Auth flow REQUIRES email: signup→verification code, forgot-password→reset code. Pruning email-resend breaks signup verification (users can't activate accounts) and forgot-password (no recovery). Even if you don't have RESEND_API_KEY, KEEP the code path — events accumulate in the outbox and drain when the key arrives. To genuinely remove email, you must also rewrite signup to skip verification (security regression) and remove forgot-password.",
+      "owns": {
+        "routes": ["api/cron/email-queue-drain"],
+        "libs": ["email.ts", "queues/"],
+        "models": ["EmailJob"],
+        "envVars": ["RESEND_API_KEY", "EMAIL_FROM"]
+      },
+      "cross_dependencies": [],
+      "surgical_edits": [
+        {
+          "file": "frontend/src/lib/server/outbox/dispatcher.ts",
+          "action": "WOULD remove cases email.verification_code, email.password_reset, email.payment_confirmation — but the auth routes EMIT these events, so removal cascades into auth signup/forgot/reset routes"
+        },
+        {
+          "file": "frontend/src/app/api/cron/outbox-drain/route.ts",
+          "action": "WOULD remove getEmailQueue() import + emailQueue arg"
+        },
+        {
+          "file": "frontend/src/app/api/auth/signup/route.ts",
+          "action": "WOULD remove enqueueOutbox(email.verification_code) — breaks email verification flow"
+        },
+        {
+          "file": "frontend/src/app/api/auth/forgot-password/route.ts",
+          "action": "WOULD remove enqueueOutbox(email.password_reset) — breaks password recovery flow"
+        }
+      ],
+      "cron_entries": ["email-queue-drain"],
+      "prisma_user_relations": [],
+      "outbox_event_kinds": [
+        "email.verification_code",
+        "email.password_reset",
+        "email.payment_confirmation"
+      ],
+      "tripwires_to_update": [
+        "frontend/src/lib/server/observability/vercel-json-shape.test.ts (remove email-queue-drain assertion)"
+      ]
+    },
+
+    "notifications": {
+      "description": "In-app notifications (list, mark-read, count, prefs)",
+      "prune_complexity": "with-care",
+      "$prune_complexity_reason": "Tightly coupled to OAuth callback (welcomeNotification), withdrawals route (withdrawalRequested), outbox dispatcher (notification.payment_received). Pruning requires editing 3+ caller routes. Most projects keep notifications even if they don't render them in UI.",
+      "owns": {
+        "routes": ["api/notifications"],
+        "libs": ["notifications/"],
+        "models": ["Notification", "NotificationPreferences"],
+        "envVars": []
+      },
+      "cross_dependencies": [],
+      "surgical_edits": [
+        {
+          "file": "frontend/src/app/api/auth/oauth/google/callback/route.ts",
+          "action": "remove createNotification(welcomeNotification(...)) call + import"
+        },
+        {
+          "file": "frontend/src/app/api/withdrawals/route.ts",
+          "action": "remove createNotification(...) call + import (post-commit notification)"
+        },
+        {
+          "file": "frontend/src/lib/server/outbox/dispatcher.ts",
+          "action": "remove case notification.payment_received + import"
+        },
+        {
+          "file": "frontend/src/lib/server/outbox/types.ts",
+          "action": "remove NotificationPaymentReceivedEvent from OutboxEvent union"
+        }
+      ],
+      "cron_entries": [],
+      "prisma_user_relations": [
+        "notifications Notification[]",
+        "notifPrefs NotificationPreferences?"
+      ],
+      "outbox_event_kinds": ["notification.payment_received"],
+      "tripwires_to_update": []
+    },
+
+    "admin-backoffice": {
+      "description": "Admin back-office (users / orders / withdrawals / audit-log / outbox / email-queue / rate-limits)",
+      "prune_complexity": "safe",
+      "owns": {
+        "routes": ["api/admin"],
+        "libs": ["admin/", "middleware/require-admin.ts"],
+        "models": ["AdminAction"],
+        "envVars": []
+      },
+      "cross_dependencies": [],
+      "surgical_edits": [
+        {
+          "file": "frontend/prisma/schema.prisma",
+          "action": "remove `role String @default(\"USER\")` field on User model"
+        },
+        {
+          "file": "frontend/scripts/make-superadmin.ts",
+          "action": "delete file (no longer applicable)"
+        },
+        {
+          "file": "frontend/scripts/make-superadmin.test.ts",
+          "action": "delete file"
+        }
+      ],
+      "cron_entries": [],
+      "prisma_user_relations": [
+        "adminActions AdminAction[]",
+        "role String @default(\"USER\")",
+        "status String @default(\"ACTIVE\")"
+      ],
+      "outbox_event_kinds": [],
+      "tripwires_to_update": []
+    },
+
+    "multi-tenancy": {
+      "description": "Organization / OrganizationMember models + requireOrgRole middleware (no routes shipped, opt-in plumbing)",
+      "prune_complexity": "safe",
+      "owns": {
+        "routes": [],
+        "libs": ["middleware/require-org-role.ts"],
+        "models": ["Organization", "OrganizationMember"],
+        "envVars": []
+      },
+      "cross_dependencies": [],
+      "surgical_edits": [],
+      "cron_entries": [],
+      "prisma_user_relations": [
+        "ownedOrganizations Organization[] @relation(\"OrgOwner\")",
+        "memberships OrganizationMember[] @relation(\"OrgMembership\")"
+      ],
+      "outbox_event_kinds": [],
+      "tripwires_to_update": []
+    },
+
+    "observability-sentry": {
+      "description": "Sentry error reporting + tracing (server + client + edge)",
+      "prune_complexity": "with-care",
+      "$prune_complexity_reason": "Sentry is woven into instrumentation.ts (Next.js register hook) AND next.config.ts (withSentryConfig wrap). Pruning requires surgical edits to both — neither file is a 'feature lib' that can be deleted.",
+      "owns": {
+        "routes": [],
+        "libs": ["sentry.ts"],
+        "models": [],
+        "envVars": [
+          "SENTRY_DSN",
+          "NEXT_PUBLIC_SENTRY_DSN",
+          "SENTRY_TRACES_SAMPLE_RATE",
+          "NEXT_PUBLIC_SENTRY_TRACES_SAMPLE_RATE",
+          "SENTRY_ENVIRONMENT",
+          "SENTRY_RELEASE",
+          "SENTRY_ORG",
+          "SENTRY_PROJECT",
+          "SENTRY_AUTH_TOKEN"
+        ]
+      },
+      "cross_dependencies": [],
+      "surgical_edits": [
+        {
+          "file": "frontend/instrumentation.ts",
+          "action": "remove `await import('./sentry.server.config')` + `await import('./sentry.edge.config')` + `export { captureRequestError as onRequestError } from '@sentry/nextjs'`"
+        },
+        {
+          "file": "frontend/next.config.ts",
+          "action": "remove `withSentryConfig(...)` wrap; replace with `export default config`"
+        },
+        {
+          "file": "frontend/sentry.client.config.ts",
+          "action": "delete file"
+        },
+        {
+          "file": "frontend/sentry.server.config.ts",
+          "action": "delete file"
+        },
+        {
+          "file": "frontend/sentry.edge.config.ts",
+          "action": "delete file"
+        },
+        {
+          "file": "frontend/package.json",
+          "action": "remove `@sentry/nextjs` from dependencies"
+        }
+      ],
+      "cron_entries": [],
+      "prisma_user_relations": [],
+      "outbox_event_kinds": [],
+      "tripwires_to_update": [
+        "frontend/src/lib/server/observability/instrumentation-shape.test.ts (relax Sentry assertions)"
+      ]
+    }
+  },
+
+  "core": {
+    "$comment": "Surfaces NEVER prunable — load-bearing for the entire starter. Pruning these breaks every other feature.",
+    "always_required": [
+      "auth (signup/login/logout/refresh/me/verify-email/forgot/reset/change-password)",
+      "csrf double-submit",
+      "rate-limit (memory fallback ok in dev, Upstash required in prod)",
+      "request-context observability",
+      "outbox infrastructure (lib/server/outbox/* — the dispatcher, types, enqueue)",
+      "5 cron handler shims (auth + lease + handler chassis)",
+      "vercel.json cron schedules + tripwire test",
+      "User model core fields (id, email, passwordHash, emailVerifiedAt, tokenVersion)"
+    ]
+  },
+
+  "$pruning_protocol": "AI agents: before pruning ANY feature, READ /PRUNING.md. It explains the order of operations (surgical_edits BEFORE deletions, cron_entries removed from vercel.json, prisma_user_relations removed from User model, tripwires updated, then `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build` to validate, with rollback via `git checkout HEAD -- .` if red). Naive deletion based on `owns` only WILL break the build."
+}

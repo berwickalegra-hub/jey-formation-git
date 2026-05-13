@@ -44,7 +44,29 @@ const SNIFFERS: Record<string, (buf: Buffer) => boolean> = {
 
   // %PDF
   'application/pdf': (buf) => buf.length >= 4 && buf.toString('ascii', 0, 4) === '%PDF',
+
+  // ISO BMFF `ftyp` box at offset 4-7, HEIF brand at offset 8-11.
+  'image/heic': (buf) => isFtypBrand(buf, ['heic', 'heix', 'heim', 'heis']),
+  'image/heif': (buf) =>
+    isFtypBrand(buf, [
+      'mif1',
+      'msf1',
+      'heic',
+      'heix',
+      'heim',
+      'heis',
+      'hevc',
+      'hevx',
+      'hevm',
+      'hevs',
+    ]),
 };
+
+function isFtypBrand(buf: Buffer, brands: string[]): boolean {
+  if (buf.length < 12) return false;
+  if (buf.toString('ascii', 4, 8) !== 'ftyp') return false;
+  return brands.includes(buf.toString('ascii', 8, 12));
+}
 
 /** Returns true when sniffer for this mime exists. */
 export function hasMagicSniffer(mimeType: string): boolean {

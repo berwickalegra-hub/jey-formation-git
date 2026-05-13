@@ -26,6 +26,17 @@ import { makeRequestContext, withRequestContext } from '@/lib/server/observabili
  *     streaming, blows up memory on large files)
  *   - Both "key absent" and "owner mismatch" return identical 404
  *     `FILE_NOT_FOUND` payload (no enumeration oracle)
+ *
+ * Caching + CDN offload (Phase 7 image-optim L1):
+ *   - Owner files (private)         → `Cache-Control: private, max-age=3600`
+ *   - Anonymous files (userId=null) → `public, max-age=31536000, immutable`
+ *     (1y immutable; key already includes a randomUUID so a content change
+ *     rotates the URL — safe to cache forever)
+ *   - When `R2_PUBLIC_URL` is set AND the file is anonymous, the route
+ *     302s to `${R2_PUBLIC_URL}/${key}` instead of streaming. Zero Vercel
+ *     function bandwidth for public assets — the CDN serves R2 directly.
+ *     Owner-private files always stream through this proxy regardless of
+ *     R2_PUBLIC_URL (auth check is the contract).
  */
 export async function GET(
   req: NextRequest,
@@ -57,6 +68,19 @@ export async function GET(
         { code: 'FILE_NOT_FOUND' },
         { status: 404, headers: { 'x-request-id': ctx.requestId } },
       );
+    }
+
+    // CDN offload for anonymous (public) files: when R2_PUBLIC_URL is set, 302
+    // to the CDN URL instead of streaming. The auth check above already gates
+    // owner-private files — we only redirect when the file is public-readable
+    // (userId === null), so this never leaks owner content.
+    const isPublic = row.userId === null;
+    const publicBase = process.env.R2_PUBLIC_URL?.replace(/\/$/, '') ?? '';
+    if (isPublic && publicBase) {
+      return NextResponse.redirect(`${publicBase}/${key}`, {
+        status: 302,
+        headers: { 'x-request-id': ctx.requestId },
+      });
     }
 
     let r2;
@@ -98,9 +122,14 @@ export async function GET(
       );
     }
 
+    // Owner-private → 1h browser cache, no CDN sharing.
+    // Anonymous-public → 1y immutable (key already includes randomUUID, so a
+    // content change rotates the URL — safe for an immutable header).
+    const cacheControl = isPublic ? 'public, max-age=31536000, immutable' : 'private, max-age=3600';
+
     const headers = new Headers({
       'Content-Type': row.mimeType,
-      'Cache-Control': 'private, max-age=3600',
+      'Cache-Control': cacheControl,
       'x-request-id': ctx.requestId,
     });
     if (res.ETag) headers.set('ETag', res.ETag);

@@ -1,137 +1,137 @@
-# amadou-monolith
+# izi kit
 
-Headless full-stack starter for the Next.js 16 + Prisma 5 + Neon + Upstash + R2 + Resend + Bictorys + Sentry stack. Single deployable Next.js app — no separate backend service. Third-party providers (R2, Resend, Bictorys, Google OAuth, Sentry, Upstash) are env-gated and inert without their vars; the app boots and `/api/auth` works with just `DATABASE_URL`, `JWT_SECRET`, `ENCRYPTION_KEY`, and `CRON_SECRET`. The app ships only logic — no UI components, no pages — every fork designs its own UX.
+Starter full-stack headless pour la stack Next.js 16 + Prisma 5 + Neon + Upstash + R2 + Resend + Bictorys + Sentry. Une seule app Next.js déployable — aucun backend séparé. Les providers tiers (R2, Resend, Bictorys, Google OAuth, Sentry, Upstash) sont gated par variables d'environnement et inertes sans leurs clés ; l'app boote et `/api/auth` fonctionne avec juste `DATABASE_URL`, `JWT_SECRET`, `ENCRYPTION_KEY` et `CRON_SECRET`. Le starter ne ship que de la logique — aucun composant UI, aucune page — chaque fork designe son propre UX.
 
-See [.planning/PROJECT.md](.planning/PROJECT.md) for the project vision and [STATUS.md](STATUS.md) for the port progress.
+Voir [.planning/PROJECT.md](.planning/PROJECT.md) pour la vision du projet et [STATUS.md](STATUS.md) pour l'historique de migration.
 
-## Beginner workflow (PRD → Banani → ship)
+## Workflow débutant (PRD → Banani → ship)
 
-**The magic phrase.** Open this project in Claude Code and type exactly:
+**La phrase magique.** Ouvre ce projet dans Claude Code et tape exactement :
 
 ```
 Lis WORKFLOW.md et dis-moi ce que je dois faire pour démarrer mon projet.
 ```
 
-(English: *"Read WORKFLOW.md and tell me what to do to start my project."*)
+L'IA va lire [WORKFLOW.md](WORKFLOW.md) + [CLAUDE.md](CLAUDE.md), comprendre où tu en es, et te guider à travers les 4 étapes (rédige ton PRD → sélectionne tes écrans dans Banani → `/import-banani` réconcilie design ↔ backend → `/gsd-execute-phase` ship le code).
 
-The AI will read [WORKFLOW.md](WORKFLOW.md) + [CLAUDE.md](CLAUDE.md), figure out where you are, and guide you through the 4 steps (write your PRD → select screens in Banani → `/import-banani` reconciles design ↔ backend → `/gsd-execute-phase` ships the code).
+Pré-requis : installe **Get Shit Done (GSD)** avant d'ouvrir le starter dans Claude Code (les commandes `/gsd-*` sont natives GSD ; seul `/import-banani` est livré par ce starter).
 
-Prerequisite: install **Get Shit Done (GSD)** before opening the starter in Claude Code (the `/gsd-*` commands are GSD-native; only `/import-banani` is shipped by this starter).
+Pour une installation complète guidée (audit des outils, comptes à créer, secrets à générer), tape `/setup-kit` dans Claude Code une fois le repo cloné.
 
 ## Quickstart
 
-The starter is **cloud-only by design** — no local containers, no daemons to install. You need a Postgres database (free tier on [Neon](https://neon.tech) is the canonical choice) and that's it.
+Le starter est **cloud-only par design** — aucun conteneur local, aucun daemon à installer. Tu as besoin d'une base Postgres (l'offre gratuite de [Neon](https://neon.tech) est le choix canonique) et c'est tout.
 
 ```bash
-gh repo create my-project --template=<your-org>/amadou-monolith --private --clone
+gh repo create my-project --template=faratasn-pixel/izikit --private --clone
 cd my-project
-cp .env.example .env.local         # fill DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY, CRON_SECRET at minimum
+cp .env.example .env.local         # remplis DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY, CRON_SECRET au minimum
 pnpm install
-pnpm db:migrate:deploy             # apply versioned migrations against your Neon DB
+pnpm db:migrate:deploy             # applique les migrations versionnées sur ta DB Neon
 pnpm dev                           # http://localhost:3000
-# in another terminal, after first signup:
+# dans un autre terminal, après le premier signup :
 pnpm db:make-superadmin you@example.com
-pnpm smoke:auth                    # verify auth happy path end-to-end
+pnpm smoke:auth                    # vérifie le happy path auth de bout en bout
 ```
 
-To get `DATABASE_URL` + `DIRECT_URL`: create a free project at https://neon.tech, then copy two strings from the dashboard — the **`-pooler`** host as `DATABASE_URL` (with `?pgbouncer=true&connection_limit=1&pool_timeout=15&sslmode=require`) and the non-pooled host as `DIRECT_URL`. Examples live in `.env.example`.
+Pour obtenir `DATABASE_URL` + `DIRECT_URL` : crée un projet gratuit sur https://neon.tech, puis copie deux strings depuis le dashboard — la version avec **`-pooler`** dans le hostname comme `DATABASE_URL` (avec `?pgbouncer=true&connection_limit=1&pool_timeout=15&sslmode=require`) et la version sans `-pooler` comme `DIRECT_URL`. Exemples dans `.env.example`.
 
 ## Stack
 
-- **App:** Next.js 16 (App Router) + React 19 + TypeScript — full-stack via `app/api/<resource>/route.ts` + Server Actions; no separate Express service
-- **Database:** Prisma 5 (Postgres / Neon serverless via `-pooler` URL + `DIRECT_URL` for migrations)
-- **Infra (all optional, env-gated):** Upstash Redis (rate limit + leader election + outbox), Cloudflare R2 / S3 (storage), Resend (email), Bictorys (payments), Google OAuth via `arctic`
-- **Auth:** cookie + CSRF + JWT (15min access / 7d refresh / 7d csrf)
-- **Observability:** Sentry via `@sentry/nextjs` (`instrumentation.ts` + `sentry.{client,server,edge}.config.ts`) — env-gated no-op without `SENTRY_DSN`; `@vercel/otel` for distributed traces
-- **Tooling:** pnpm workspace (single package at `frontend/`), Vitest, ESLint 9 flat config, Prettier, Node 20+
+- **App :** Next.js 16 (App Router) + React 19 + TypeScript — full-stack via `app/api/<resource>/route.ts` + Server Actions ; tout dans une seule app
+- **Base de données :** Prisma 5 (Postgres / Neon serverless via URL `-pooler` + `DIRECT_URL` pour les migrations)
+- **Infra (toutes optionnelles, env-gated) :** Upstash Redis (rate-limit + leader election + outbox), Cloudflare R2 / S3 (storage), Resend (email), Bictorys (paiements mobile money), Google OAuth via `arctic`
+- **Auth :** cookie + CSRF + JWT (access 15min / refresh 7j / csrf 7j)
+- **Observabilité :** Sentry via `@sentry/nextjs` (`instrumentation.ts` + `sentry.{client,server,edge}.config.ts`) — no-op silencieux sans `SENTRY_DSN` ; `@vercel/otel` pour les traces distribuées
+- **Outils :** workspace pnpm (un seul package dans `frontend/`), Vitest, ESLint 9 flat config, Prettier, Node 20+
 
-## Required env vars (boot)
+## Variables d'environnement requises (boot)
 
-| Variable | Purpose |
+| Variable | Rôle |
 |---|---|
-| `DATABASE_URL` | Neon pooler URL (`?pgbouncer=true&connection_limit=1&pool_timeout=15&sslmode=require`) |
-| `DIRECT_URL` | Direct (non-pooled) Neon URL for `prisma migrate` |
-| `JWT_SECRET` | ≥32 chars, generate with `openssl rand -base64 32` |
-| `ENCRYPTION_KEY` | 32 bytes base64, generate with `openssl rand -base64 32` |
-| `CRON_SECRET` | Bearer token required by `/api/cron/*` handlers; `openssl rand -base64 32` |
-| `APP_URL` | Used for email link generation and OAuth redirect base; default `http://localhost:3000` |
+| `DATABASE_URL` | URL pooler Neon (`?pgbouncer=true&connection_limit=1&pool_timeout=15&sslmode=require`) |
+| `DIRECT_URL` | URL Neon directe (non-poolée) pour `prisma migrate` |
+| `JWT_SECRET` | ≥32 chars, générer avec `openssl rand -base64 32` |
+| `ENCRYPTION_KEY` | 32 bytes base64, générer avec `openssl rand -base64 32` |
+| `CRON_SECRET` | Bearer token requis par les handlers `/api/cron/*` ; `openssl rand -base64 32` |
+| `APP_URL` | Utilisé pour la génération des liens email et la base de redirect OAuth ; défaut `http://localhost:3000` |
 
-Optional groups (set the vars to enable; absent = inert):
+Groupes optionnels (set les vars pour activer ; absent = inerte) :
 
-| Group | Vars | Inert behavior |
+| Groupe | Vars | Comportement quand absent |
 |---|---|---|
-| R2 / S3 storage | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL?` | `/api/upload` falls back to DB-stored content; `/api/files/:key` proxies through Next |
-| Email (Resend) | `RESEND_API_KEY`, `EMAIL_FROM` | Email queue rows accumulate but are never sent (drained by cron when key arrives) |
-| Payments (Bictorys) | `BICTORYS_API_KEY`, `BICTORYS_PRIVATE_KEY`, `BICTORYS_WEBHOOK_SECRET`, `BICTORYS_MERCHANT_SECRET_CODE` | `/api/orders` and `/api/webhooks/bictorys` 404; circuit breaker stays in CLOSED state |
-| Google OAuth | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | `/api/auth/oauth/google/*` 404 |
-| Sentry | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_TRACES_SAMPLE_RATE?`, ... | Silent no-op (zero perf cost) |
-| Upstash Redis | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | In-memory rate-limit fallback with a `logger.warn` at boot — DO NOT run in production without Upstash |
+| Storage R2 / S3 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_PUBLIC_URL?` | `/api/upload` renvoie 503 ; `/api/files/:key` proxie via Next |
+| Email (Resend) | `RESEND_API_KEY`, `EMAIL_FROM` | Les lignes en queue email s'accumulent mais ne partent jamais (drainage au cron suivant dès que la clé arrive) |
+| Paiements (Bictorys) | `BICTORYS_API_KEY`, `BICTORYS_PRIVATE_KEY`, `BICTORYS_WEBHOOK_SECRET`, `BICTORYS_MERCHANT_SECRET_CODE` | `/api/orders` et `/api/webhooks/bictorys` renvoient 404 ; circuit breaker reste CLOSED |
+| Google OAuth | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` | `/api/auth/oauth/google/*` renvoient 404 |
+| Sentry | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_TRACES_SAMPLE_RATE?`, ... | No-op silencieux (zéro coût perf) |
+| Upstash Redis | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Fallback rate-limit en mémoire avec `logger.warn` au boot — NE PAS lancer en prod sans Upstash |
 
-Full env reference with all flags: see [`.env.example`](.env.example) at the repo root (14 sections, every key documented with defaults + impact).
+Référence env complète avec toutes les flags : voir [`.env.example`](.env.example) à la racine du repo (14 sections, chaque clé documentée avec défaut + impact).
 
-## Route Inventory
+## Inventaire des routes
 
-40 routes under `frontend/src/app/api/`. All declare `export const runtime = 'nodejs'` (enforced by [`frontend/src/lib/server/observability/runtime-enforcement.test.ts`](frontend/src/lib/server/observability/runtime-enforcement.test.ts)).
+40 routes sous `frontend/src/app/api/`. Toutes déclarent `export const runtime = 'nodejs'` (enforced par [`frontend/src/lib/server/observability/runtime-enforcement.test.ts`](frontend/src/lib/server/observability/runtime-enforcement.test.ts)).
 
 ### Auth (`/api/auth/*`) — 10 routes
-| Method | Path | Auth |
+| Méthode | Path | Auth |
 |---|---|---|
-| POST | `/signup` | none |
-| POST | `/login` | none |
+| POST | `/signup` | aucune |
+| POST | `/login` | aucune |
 | POST | `/logout` | cookies |
-| POST | `/refresh` | refresh cookie (`/api/auth` scoped) |
-| GET | `/me` | access cookie |
-| POST | `/verify-email` | none |
-| POST | `/forgot-password` | none |
-| POST | `/reset-password` | none |
+| POST | `/refresh` | cookie refresh (scope `/api/auth`) |
+| GET | `/me` | cookie access |
+| POST | `/verify-email` | aucune |
+| POST | `/forgot-password` | aucune |
+| POST | `/reset-password` | aucune |
 | PUT | `/change-password` | access + CSRF |
 | GET/POST/DELETE | `/withdrawal-pin` | access + CSRF |
 
 ### OAuth — 2 routes
-| Method | Path | Auth |
+| Méthode | Path | Auth |
 |---|---|---|
-| GET | `/api/auth/oauth/google/start` | none |
-| GET | `/api/auth/oauth/google/callback` | state cookie |
+| GET | `/api/auth/oauth/google/start` | aucune |
+| GET | `/api/auth/oauth/google/callback` | cookie state |
 
 ### Notifications — 3 routes
-| Method | Path | Auth |
+| Méthode | Path | Auth |
 |---|---|---|
-| GET | `/api/notifications` (list) | access |
+| GET | `/api/notifications` (liste) | access |
 | POST | `/api/notifications` (mark-read) | access + CSRF |
 | GET | `/api/notifications/count` | access |
-| GET/PATCH | `/api/notifications/prefs` | access (+CSRF on PATCH) |
+| GET/PATCH | `/api/notifications/prefs` | access (+CSRF sur PATCH) |
 
 ### Orders + Withdrawals — 2 routes
-| Method | Path | Auth |
+| Méthode | Path | Auth |
 |---|---|---|
-| POST | `/api/orders` | optional |
-| POST/GET | `/api/withdrawals` | access (+CSRF on POST) |
+| POST | `/api/orders` | optionnelle |
+| POST/GET | `/api/withdrawals` | access (+CSRF sur POST) |
 
 ### Uploads + Files — 2 routes
-| Method | Path | Auth |
+| Méthode | Path | Auth |
 |---|---|---|
 | POST | `/api/upload` | access + CSRF |
-| GET | `/api/files/[...key]` | none (R2 proxy) |
+| GET | `/api/files/[...key]` | aucune (proxy R2) |
 
 ### Webhooks — 1 route
-| Method | Path | Auth |
+| Méthode | Path | Auth |
 |---|---|---|
-| POST | `/api/webhooks/bictorys` | provider HMAC + 60s replay window |
+| POST | `/api/webhooks/bictorys` | HMAC provider + replay window 60s |
 
-### Cron handlers — 5 routes (all `Authorization: Bearer ${CRON_SECRET}`)
+### Handlers cron — 5 routes (toutes `Authorization: Bearer ${CRON_SECRET}`)
 | Path | Schedule (`vercel.json`) |
 |---|---|
-| `/api/cron/outbox-drain` | every 1 min |
-| `/api/cron/email-queue-drain` | every 1 min |
-| `/api/cron/verification-cleanup` | hourly |
-| `/api/cron/order-expiration` | every 5 min |
-| `/api/cron/webhook-log-purge` | daily |
+| `/api/cron/outbox-drain` | toutes les minutes |
+| `/api/cron/email-queue-drain` | toutes les minutes |
+| `/api/cron/verification-cleanup` | toutes les heures |
+| `/api/cron/order-expiration` | toutes les 5 min |
+| `/api/cron/webhook-log-purge` | quotidien |
 
 ### Admin (`/api/admin/*`) — 12 routes
-| Method | Path | Auth |
+| Méthode | Path | Auth |
 |---|---|---|
 | GET | `/me` | ADMIN |
-| GET | `/users` (list) | ADMIN |
+| GET | `/users` (liste) | ADMIN |
 | GET | `/users/:id` | ADMIN |
 | PATCH | `/users/:id/role` | SUPERADMIN + CSRF |
 | PATCH | `/users/:id/status` | ADMIN/SUPERADMIN + CSRF |
@@ -144,108 +144,110 @@ Full env reference with all flags: see [`.env.example`](.env.example) at the rep
 | GET | `/rate-limits` | ADMIN |
 
 ### Health — 2 routes
-| Method | Path | Response |
+| Méthode | Path | Réponse |
 |---|---|---|
 | GET | `/api/health` | `{ ok: true, time }` (liveness) |
-| GET | `/api/readyz` | `{ ok, db, redis }` (readiness, 503 on failure) |
+| GET | `/api/readyz` | `{ ok, db, redis }` (readiness, 503 si l'un tombe) |
 
-Full request/response shapes: read the route handlers under [`frontend/src/app/api/`](frontend/src/app/api/). The route handlers are the contract.
+Shapes complètes des requêtes/réponses : lis les route handlers sous [`frontend/src/app/api/`](frontend/src/app/api/). Les route handlers SONT le contrat.
 
 ## Smoke test
 
-`pnpm smoke:auth` runs [`frontend/scripts/smoke-auth.ts`](frontend/scripts/smoke-auth.ts) against a running `pnpm dev`. It signs up, peeks the verification code from the DB via Prisma, verifies email, calls `GET /api/auth/me`, and logs out. Exit 0 on full pass; 1 + descriptive log on any failure.
+`pnpm smoke:auth` lance [`frontend/scripts/smoke-auth.ts`](frontend/scripts/smoke-auth.ts) contre un `pnpm dev` qui tourne. Le script fait un signup, lit le code de vérification dans la DB via Prisma, vérifie l'email, appelle `GET /api/auth/me`, et déconnecte. Exit 0 sur succès complet ; 1 + log descriptif sur n'importe quel échec.
 
-Override the target with `SMOKE_BASE_URL` for preview deployments:
+Override la cible avec `SMOKE_BASE_URL` pour les déploiements preview :
 
 ```bash
 SMOKE_BASE_URL=https://my-preview.vercel.app pnpm smoke:auth
 ```
 
-The smoke script requires `DATABASE_URL` and `JWT_SECRET` set (it peeks the verification code directly via Prisma — no `/api/test/peek-code` endpoint). Not run in CI; manual UAT only.
+Le smoke script demande `DATABASE_URL` et `JWT_SECRET` set (il lit le code de vérification directement via Prisma — pas d'endpoint `/api/test/peek-code`). Pas dans la CI ; UAT manuel uniquement.
 
-## Deploy to Vercel
+## Déploiement Vercel
 
-1. Push the repo to a Vercel project pointed at `frontend/` as the root directory (the project is a pnpm workspace; Vercel auto-detects via `pnpm-workspace.yaml`).
-2. Map every required-to-boot env var in Vercel project settings (Production + Preview + Development).
-3. [`frontend/vercel.json`](frontend/vercel.json) declares cron schedules — Vercel auto-registers them on deploy. No additional setup needed.
-4. Sentry source-map upload runs in `next build` if `SENTRY_ORG` / `SENTRY_PROJECT` / `SENTRY_AUTH_TOKEN` are set as build-time env vars.
-5. Standalone output is auto-detected (`next.config.ts` enables it); no extra config.
-6. Sentry / OTel init details live in [`frontend/instrumentation.ts`](frontend/instrumentation.ts) and the `sentry.*.config.ts` files — read those for hook-ordering specifics.
+1. Push le repo vers un projet Vercel pointé sur `frontend/` comme root directory (le projet est un workspace pnpm ; Vercel auto-détecte via `pnpm-workspace.yaml`).
+2. Map chaque variable d'environnement requise au boot dans les Vercel project settings (Production + Preview + Development).
+3. [`frontend/vercel.json`](frontend/vercel.json) déclare les schedules cron — Vercel les enregistre automatiquement au deploy. Aucun setup additionnel.
+4. L'upload des source-maps Sentry tourne dans `next build` si `SENTRY_ORG` / `SENTRY_PROJECT` / `SENTRY_AUTH_TOKEN` sont définis comme build-time env vars.
+5. Le standalone output est auto-détecté (`next.config.ts` l'active) ; aucune config supplémentaire.
+6. Détails init Sentry / OTel dans [`frontend/instrumentation.ts`](frontend/instrumentation.ts) et les fichiers `sentry.*.config.ts` — lis-les pour les détails d'ordre des hooks.
 
-## Design system — fully swappable
+## Design system — entièrement swappable
 
-The starter ships **no UI components** by design. What you get:
+Le starter ne ship **aucun composant UI** par design. Ce que tu as :
 
-- [frontend/src/app/page.tsx](frontend/src/app/page.tsx) — `return null` placeholder; write your homepage here
-- [frontend/src/app/layout.tsx](frontend/src/app/layout.tsx) — `Inter` font + `<html>/<body>` shell + 2 client contexts (`AuthProvider`, `ToastProvider`). Both contexts are **logic-only** (zero design coupling) — keep them, restyle the toasts in your own components
-- [frontend/src/app/error.tsx](frontend/src/app/error.tsx) — Tailwind-styled error boundary; replace with your own
-- [frontend/src/app/globals.css](frontend/src/app/globals.css) — single line `@import 'tailwindcss';` (Tailwind v4 zero-config). Drop the line + remove `@tailwindcss/postcss` from [postcss.config.mjs](frontend/postcss.config.mjs) to leave Tailwind out entirely.
-- [examples/frontend-pages/](examples/frontend-pages/) — 11 reference Tailwind pages (login, signup, verify-email, forgot/reset-password, dashboard, withdrawals, payment-success/failure, auth-error, admin/{layout,users,withdrawals}). Copy and restyle, or rebuild from scratch — they consume the same `/api/*` routes either way.
+- [frontend/src/app/page.tsx](frontend/src/app/page.tsx) — placeholder `return null` ; écris ta homepage ici
+- [frontend/src/app/layout.tsx](frontend/src/app/layout.tsx) — font `Inter` + shell `<html>/<body>` + 2 contextes client (`AuthProvider`, `ToastProvider`). Les deux contextes sont **logic-only** (zéro couplage design) — garde-les, restyle les toasts dans tes propres composants
+- [frontend/src/app/error.tsx](frontend/src/app/error.tsx) — error boundary stylé Tailwind ; remplace par le tien
+- [frontend/src/app/globals.css](frontend/src/app/globals.css) — une seule ligne `@import 'tailwindcss';` (Tailwind v4 zero-config). Vire la ligne + retire `@tailwindcss/postcss` de [postcss.config.mjs](frontend/postcss.config.mjs) pour sortir complètement de Tailwind.
+- [examples/frontend-pages/](examples/frontend-pages/) — 11 pages Tailwind de référence (login, signup, verify-email, forgot/reset-password, dashboard, withdrawals, payment-success/failure, auth-error, admin/{layout,users,withdrawals}). Copie et restyle, ou refais à zéro — elles consomment les mêmes routes `/api/*` dans tous les cas.
 
-**No server lib touches the DOM.** Routes return `NextResponse.json(...)` only. You can ship a plain-React UI, a shadcn/ui front, a Mantine dashboard, a SwiftUI iOS app via the same JSON contract — the backend stays unchanged.
+**Aucune lib serveur ne touche au DOM.** Les routes renvoient `NextResponse.json(...)` uniquement. Tu peux ship un UI React vanilla, un front shadcn/ui, un dashboard Mantine, une app iOS SwiftUI via le même contrat JSON — le backend reste inchangé.
 
-## Bundled Claude Code skills
+## Skills Claude Code bundlées
 
-Forks open in Claude Code automatically pick up two design-system skills under [.claude/skills/](.claude/skills/) — they fill the "headless = no UI" gap for beginners:
+Les forks ouverts dans Claude Code récupèrent automatiquement plusieurs skills sous [.claude/skills/](.claude/skills/) — elles comblent le gap « headless = no UI » pour les débutants :
 
-| Skill | Trigger phrases | What it does |
+| Skill | Phrases déclencheuses | Ce qu'elle fait |
 |---|---|---|
-| [`banani-design-implementation`](.claude/skills/banani-design-implementation/SKILL.md) | "build this from Banani", "use the Banani MCP", "reproduce this screen" | Pixel-perfect 1:1 reproduction of selected Banani screens via the Banani MCP. Reads `CLAUDE.md` for the project stack (no Tailwind/React assumptions), plans the work, tracks progress across sessions. |
-| [`ui-ux-pro-max`](.claude/skills/ui-ux-pro-max/SKILL.md) | "design", "build", "improve", "review UI" + any of: button/modal/navbar/dashboard/landing/SaaS/glassmorphism/etc. | Searchable design intelligence: 67 styles, 96 palettes, 57 font pairings, 99 UX guidelines, 25 chart types across 13 stacks (Next.js, React, Vue, SwiftUI, Flutter…). Includes shadcn/ui MCP integration. |
+| [`setup-kit`](.claude/skills/setup-kit/SKILL.md) | « /setup-kit », « je débute », « qu'est-ce que je dois installer » | Audit complet de l'environnement (Node, pnpm, gh CLI, vercel CLI, skills Claude Code, comptes Neon/Banani), auto-install ce qui peut l'être, guide pas-à-pas pour le reste. Mode débutant non-négociable. |
+| [`import-banani`](.claude/skills/import-banani/SKILL.md) | « /import-banani », « importe mes écrans Banani » | Lit tes écrans Banani sélectionnés via MCP, matche contre les 40 routes existantes, produit `.planning/DESIGN-COVERAGE.md` + `.planning/ROADMAP.md` prêt pour `/gsd-execute-phase`. |
+| [`banani-design-implementation`](.claude/skills/banani-design-implementation/SKILL.md) | « build this from Banani », « use the Banani MCP », « reproduce this screen » | Reproduction pixel-perfect 1:1 des écrans Banani sélectionnés via le MCP Banani. Lit `CLAUDE.md` pour la stack du projet (aucune assumption Tailwind/React), planifie le travail, tracke le progrès entre sessions. |
+| [`ui-ux-pro-max`](.claude/skills/ui-ux-pro-max/SKILL.md) | « design », « build », « improve », « review UI » + n'importe lequel de : button/modal/navbar/dashboard/landing/SaaS/glassmorphism/etc. | Design intelligence searchable : 67 styles, 96 palettes, 57 paires de fonts, 99 guidelines UX, 25 types de charts sur 13 stacks (Next.js, React, Vue, SwiftUI, Flutter…). Inclut l'intégration MCP shadcn/ui. |
 
-Beginners can therefore go from `gh repo create --template` to a designed UI in one chat: describe the screen → either skill takes over → the API routes are already wired.
+Les débutants peuvent donc passer de `gh repo create --template` à un UI designé en un seul chat : décris l'écran → une skill prend le relais → les routes API sont déjà câblées.
 
-## Project layout
+## Structure du projet
 
 ```
-amadou-monolith/
-├── frontend/                    The Next.js 16 app (full-stack)
+izikit/
+├── frontend/                    L'app Next.js 16 (full-stack)
 │   ├── prisma/                  schema.prisma + migrations
-│   ├── scripts/                 make-superadmin.ts, seed-dev.ts, smoke-auth.ts (run via tsx)
-│   ├── vercel.json              cron schedules (5 entries)
-│   ├── .env.example             env reference
+│   ├── scripts/                 make-superadmin.ts, seed-dev.ts, smoke-auth.ts (via tsx)
+│   ├── vercel.json              schedules cron (5 entrées)
+│   ├── .env.example             référence env
 │   └── src/
 │       ├── app/api/             route handlers
 │       └── lib/
-│           ├── api.ts           browser fetch wrapper (PROTECTED)
-│           └── server/          server-only libs (auth, crypto, payments, oauth, webhook, outbox, cron, ...)
-├── examples/frontend-pages/     reference UIs to copy and restyle (admin/, auth-error)
-├── .planning/                   roadmap, phases, decisions (gsd workflow)
-├── pnpm-workspace.yaml          workspace = frontend/ only
-└── package.json                 orchestrator scripts (proxy `pnpm --filter frontend ...`)
+│           ├── api.ts           browser fetch wrapper (PROTÉGÉ)
+│           └── server/          libs server-only (auth, crypto, payments, oauth, webhook, outbox, cron, ...)
+├── examples/frontend-pages/     UIs de référence à copier et restyler (admin/, auth-error)
+├── .planning/                   roadmap, phases, décisions (workflow GSD)
+├── pnpm-workspace.yaml          workspace = frontend/ seulement
+└── package.json                 scripts orchestrateurs (proxy `pnpm --filter frontend ...`)
 ```
 
-## What's NOT shipped (out of scope)
+## Ce qui n'est PAS livré (hors scope)
 
-Mirroring [`.planning/PROJECT.md`](.planning/PROJECT.md) "Out of Scope" — copied to keep this README self-contained.
+Mirroring [`.planning/PROJECT.md`](.planning/PROJECT.md) « Out of Scope » — copié ici pour rendre ce README self-contained.
 
-| Feature | Reason |
+| Feature | Raison |
 |---|---|
-| UI components / pages | Headless by design — every fork builds its own UX |
-| Multi-provider payments out of the box | `PaymentProvider` interface allows per-project swap; default ships Bictorys only |
-| Long-running worker process | Vercel-first decision — all background work runs as scheduled route handlers |
-| Auth.js / NextAuth migration | Custom JWT + cookies + CSRF kept for full template parity |
-| Edge runtime / Cloudflare Workers compatibility | All routes are `runtime='nodejs'` |
-| Public OSS distribution (docs site, npm package, CLI bootstrapper) | Personal/private use |
-| Frontend test framework (Playwright / RTL) | Vitest covers `lib/server/**` only; UI tests are per-project |
-| Distributed circuit breaker in v1 | Single-instance limit; deferred to v2 |
-| i18n beyond FCFA defaults | Per-project concern |
-| Built-in TOTP / 2FA | Passkeys (v2) supersede |
+| Composants UI / pages | Headless par design — chaque fork construit son propre UX |
+| Multi-provider paiements out-of-the-box | L'interface `PaymentProvider` permet le swap par projet ; défaut Bictorys only |
+| Worker process long-running | Décision Vercel-first — tout le background tourne en route handlers planifiés |
+| Migration Auth.js / NextAuth | JWT custom + cookies + CSRF gardés pour la parité template complète |
+| Runtime Edge / Cloudflare Workers | Toutes les routes sont `runtime='nodejs'` |
+| Distribution OSS publique (docs site, package npm, CLI bootstrapper) | Usage privé / personnel |
+| Framework de test frontend (Playwright / RTL) | Vitest couvre `lib/server/**` only ; les tests UI sont per-projet |
+| Circuit breaker distribué en v1 | Limite single-instance ; reporté à v2 |
+| i18n au-delà des défauts FCFA | Concern per-projet |
+| TOTP / 2FA built-in | Passkeys (v2) les remplacent |
 
-## Critical invariants
+## Invariants critiques
 
-These are the rules every Claude session must respect — see [CLAUDE.md](CLAUDE.md) for the full list. The short version:
+Ce sont les règles que chaque session Claude doit respecter — voir [CLAUDE.md](CLAUDE.md) pour la liste complète. Version courte :
 
-- Every Route Handler exports `runtime = 'nodejs'` (CI-enforced)
-- Webhook handlers read raw body via `req.arrayBuffer()` BEFORE any JSON parse (HMAC integrity)
-- Notifications go through `createNotification(prisma, input)` — never `prisma.notification.create` directly
-- Withdrawals use `pg_advisory_xact_lock(hashtext(userId))` inside Serializable tx (call `withUserAdvisoryLock`)
-- Webhook side-effects go to outbox via `enqueueOutbox(tx, event)` — never fire-and-forget
-- Cron handlers verify `Authorization: Bearer ${CRON_SECRET}`
-- OAuth callback refuses `email_verified !== true`
-- Admin mutations call `logAdminAction(prisma, {...})` — bypass = compliance regression
-- Frontend `api()` wrapper retries only `GET`/`HEAD` on network errors
+- Chaque Route Handler exporte `runtime = 'nodejs'` (CI-enforced)
+- Les webhook handlers lisent le raw body via `req.arrayBuffer()` AVANT tout JSON parse (intégrité HMAC)
+- Les notifications passent par `createNotification(prisma, input)` — jamais `prisma.notification.create` directement
+- Les withdrawals utilisent `pg_advisory_xact_lock(hashtext(userId))` dans une tx Serializable (appelle `withUserAdvisoryLock`)
+- Les side-effects webhook passent par l'outbox via `enqueueOutbox(tx, event)` — jamais fire-and-forget
+- Les handlers cron vérifient `Authorization: Bearer ${CRON_SECRET}`
+- Le callback OAuth refuse `email_verified !== true`
+- Les mutations admin appellent `logAdminAction(prisma, {...})` — bypass = régression compliance
+- Le wrapper `api()` frontend retry uniquement `GET`/`HEAD` sur erreur réseau
 
-## License
+## Licence
 
-UNLICENSED — internal template.
+UNLICENSED — template interne.

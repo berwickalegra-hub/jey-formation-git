@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { log } from '@/lib/server/observability/log';
 
 const HIBP_BASE = 'https://api.pwnedpasswords.com/range/';
-const USER_AGENT = 'amadou-monolith-auth/1';
+const USER_AGENT = 'izikit-auth/1';
 const TIMEOUT_MS = 2_000;
 
 /**

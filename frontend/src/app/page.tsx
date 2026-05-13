@@ -1,4 +1,4 @@
-// Default welcome page for the amadou-monolith starter.
+// Default welcome page for the izi kit starter.
 //
 // Replace this file with your real homepage as soon as you're oriented.
 // This file exists so a fresh fork shows something useful at `/` instead of a
@@ -57,7 +57,7 @@ export default function Home() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-12 font-sans text-gray-900">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight">amadou-monolith</h1>
+        <h1 className="text-3xl font-bold tracking-tight">izi kit</h1>
         <p className="mt-2 text-gray-600">
           Headless Next.js 16 starter — auth, payments, admin, webhooks, cron.
           <br />

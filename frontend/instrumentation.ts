@@ -13,7 +13,7 @@ export async function register() {
   if (process.env.NEXT_RUNTIME === 'edge') {
     await import('./sentry.edge.config');
   }
-  registerOTel({ serviceName: 'amadou-monolith' });
+  registerOTel({ serviceName: 'izikit' });
 }
 
 // Required for Sentry to capture unhandled route errors (Next.js 15+).

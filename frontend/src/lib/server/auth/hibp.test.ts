@@ -37,7 +37,7 @@ describe('hibp.pwnedCount', () => {
     const [url, init] = fetchSpy.mock.calls[0]!;
     expect(url).toBe(`https://api.pwnedpasswords.com/range/${prefix}`);
     const headers = (init as RequestInit).headers as Record<string, string>;
-    expect(headers['User-Agent']).toBe('amadou-monolith-auth/1');
+    expect(headers['User-Agent']).toBe('izikit-auth/1');
     expect(headers['Add-Padding']).toBe('true');
   });
 

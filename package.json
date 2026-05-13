@@ -1,5 +1,5 @@
 {
-  "name": "amadou-monolith",
+  "name": "izikit",
   "version": "0.0.1",
   "private": true,
   "description": "Solo-dev SaaS monolith starter — Next.js 16 (full-stack: API routes + Server Actions) + Prisma + Auth (cookie/CSRF/JWT) — fork via gh repo create --template",

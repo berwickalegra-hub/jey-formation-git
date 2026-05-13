@@ -10,7 +10,7 @@
 >
 > L'IA fera le reste.
 
-Ce document décrit le **parcours canonique d'un débutant** qui utilise `amadou-monolith` comme starter. Le but : passer d'une idée écrite à un produit fonctionnel sans toucher au plumbing (auth, paiements, admin, webhooks, cron).
+Ce document décrit le **parcours canonique d'un débutant** qui utilise `izi kit` comme starter. Le but : passer d'une idée écrite à un produit fonctionnel sans toucher au plumbing (auth, paiements, admin, webhooks, cron).
 
 ## Prerequisites
 

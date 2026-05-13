@@ -3,7 +3,7 @@
   "$comment_2": "Field semantics: `owns` = files the feature owns and that get DELETED on prune. `surgical_edits` = files that get EDITED (not deleted) — typically dispatcher cases, schema relations, type unions. `prune_complexity` = 'safe' | 'with-care' | 'never' (signals the AI must read PRUNING.md carefully).",
   "$comment_3": "`prune_complexity: never` means the codebase cannot be removed without breaking core flows (e.g. signup verification needs email-resend). The feature is still LISTED here because it has env vars / surgical_edits a fork-author should be aware of, but the AI MUST refuse a code-prune request and offer the configure-off (env-empty) alternative instead.",
   "version": "1.2.0",
-  "starter": "amadou-monolith@v1.0",
+  "starter": "izikit@v1.1",
   "features": {
     "payments-bictorys": {
       "description": "Bictorys mobile-money payments (orders + charge + circuit breaker)",

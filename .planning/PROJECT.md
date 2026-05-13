@@ -1,4 +1,6 @@
-# amadou-monolith
+# izi kit
+
+> Note: this project was previously named `amadou-monolith`. Historical phase records, STATUS.md, and `.planning/phases/**` keep the original name on purpose.
 
 ## What This Is
 
@@ -33,7 +35,7 @@ Cloning this repo and filling in `.env.local` produces a working Next.js app on 
 - ✓ **OPS-04**: `CRON_SECRET` documented in `.env.example` with `openssl rand -base64 32` hint — Phase 0
 - ✓ **OPS-05**: `next.config.ts` confirmed clean of deprecated `experimental.instrumentationHook` (test-locked) — Phase 0
 - ✓ **OBS-04**: `lib/server/observability/request-context.ts` (AsyncLocalStorage + UUID generation + inbound `X-Request-Id` validation) and `log.ts` wrapper (injects `requestId` into log context without modifying `lib/server/logger.ts`) — Phase 0; per-route `X-Request-Id` response header lands in Phase 1+
-- ✓ **OBS-05**: `@vercel/otel` `registerOTel({ serviceName: 'amadou-monolith' })` in `instrumentation.ts`, coexists with Sentry — Phase 0
+- ✓ **OBS-05**: `@vercel/otel` `registerOTel({ serviceName: 'izikit' })` in `instrumentation.ts`, coexists with Sentry — Phase 0 (rebranded from `amadou-monolith` 2026-05-13)
 
 #### Validated in Phase 1 (Auth Routes)
 

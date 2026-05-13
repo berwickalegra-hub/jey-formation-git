@@ -74,17 +74,12 @@ export default function Home() {
         <h2 className="text-lg font-semibold text-emerald-900">
           👋 New here? Open this project in Claude Code and type:
         </h2>
-        <pre className="mt-3 overflow-x-auto rounded bg-white p-3 text-sm">
-          Lis WORKFLOW.md et dis-moi ce que je dois faire pour démarrer mon projet.
-        </pre>
-        <p className="mt-2 text-sm text-emerald-900">
-          (Or in English:{' '}
-          <em>&ldquo;Read WORKFLOW.md and tell me what to do to start my project.&rdquo;</em>)
-        </p>
+        <pre className="mt-3 overflow-x-auto rounded bg-white p-3 text-sm">/setup-kit</pre>
         <p className="mt-3 text-sm text-emerald-900">
-          The AI will read <code>WORKFLOW.md</code> + <code>CLAUDE.md</code> (both at the repo
-          root), then guide you through the 4-step flow: PRD → Banani design →{' '}
-          <code>/import-banani</code> → <code>/gsd-execute-phase</code>.
+          The <code>/setup-kit</code> skill bundled with this repo audits your environment, installs
+          what it can (GSD, pnpm via Corepack, vercel CLI, secrets), walks you through creating a
+          free Neon Postgres + Banani account, and hands off to <code>WORKFLOW.md</code> for the PRD
+          → Banani → <code>/import-banani</code> → <code>/gsd-execute-phase</code> flow.
         </p>
       </section>
 

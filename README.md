@@ -4,19 +4,24 @@ Starter full-stack headless pour la stack Next.js 16 + Prisma 5 + Neon + Upstash
 
 Voir [.planning/PROJECT.md](.planning/PROJECT.md) pour la vision du projet et [STATUS.md](STATUS.md) pour l'historique de migration.
 
-## Workflow débutant (PRD → Banani → ship)
+## Workflow débutant (clone → ship)
 
-**La phrase magique.** Ouvre ce projet dans Claude Code et tape exactement :
+**Une seule commande pour démarrer.** Ouvre ce projet dans Claude Code et tape :
 
 ```
-Lis WORKFLOW.md et dis-moi ce que je dois faire pour démarrer mon projet.
+/setup-kit
 ```
 
-L'IA va lire [WORKFLOW.md](WORKFLOW.md) + [CLAUDE.md](CLAUDE.md), comprendre où tu en es, et te guider à travers les 4 étapes (rédige ton PRD → sélectionne tes écrans dans Banani → `/import-banani` réconcilie design ↔ backend → `/gsd-execute-phase` ship le code).
+`/setup-kit` est une skill bundlée dans ce repo. Elle fait **tout le parcours d'installation guidé** :
 
-Pré-requis : installe **Get Shit Done (GSD)** avant d'ouvrir le starter dans Claude Code (les commandes `/gsd-*` sont natives GSD ; seul `/import-banani` est livré par ce starter).
+1. **Audit** — détecte ce qui est déjà installé (Node, pnpm, gh CLI, vercel CLI, skills Claude Code, fichier `.env.local`, etc.)
+2. **Auto-install** — installe ce qui peut l'être (GSD via `npx`, pnpm via Corepack, vercel CLI via npm, génération des secrets)
+3. **Comptes** — te demande de créer ton compte Neon (Postgres gratuit, 30 sec) et copier `DATABASE_URL` + `DIRECT_URL`, puis Banani si tu utilises le design import
+4. **Skills** — affiche les commandes `/plugin install` à coller dans Claude Code pour superpowers / ui-ux-pro-max / context-mode
+5. **Setup repo** — `pnpm install`, applique le schéma Prisma, et lance le smoke test
+6. **Hand-off** — quand tout est vert, te route vers [WORKFLOW.md](WORKFLOW.md) pour les 4 étapes suivantes (rédige ton PRD → sélectionne tes écrans dans Banani → `/import-banani` réconcilie design ↔ backend → `/gsd-execute-phase` ship le code)
 
-Pour une installation complète guidée (audit des outils, comptes à créer, secrets à générer), tape `/setup-kit` dans Claude Code une fois le repo cloné.
+Pré-requis avant de taper `/setup-kit` : avoir **Claude Code** installé et **Get Shit Done (GSD)** installable via `npx` (l'audit le confirme).
 
 ## Quickstart
 

@@ -2,27 +2,33 @@
 
 > **🤖 Si tu es une IA qui lit ce fichier sur demande d'un débutant** : lis ce document **en entier** + lis ensuite [CLAUDE.md](CLAUDE.md) pour comprendre l'architecture, puis demande au débutant **où il en est dans les 5 étapes ci-dessous** (a-t-il déjà un PRD ? a-t-il designé sur Banani ? etc.) et guide-le étape par étape. Ne saute aucune étape — chaque étape valide la précédente.
 
-> **👤 Si tu es un débutant** : ouvre ce projet dans Claude Code et tape **exactement** :
->
-> ```
-> Lis WORKFLOW.md et dis-moi ce que je dois faire pour démarrer mon projet.
-> ```
->
-> L'IA fera le reste.
+> **👤 Si tu es un débutant** : ouvre ce projet dans Claude Code et tape **`/setup-kit`**. La skill bundlée avec ce repo gère toute l'installation (audit + comptes + secrets) et te route vers les étapes 1-4 ci-dessous à la fin.
 
 Ce document décrit le **parcours canonique d'un débutant** qui utilise `izi kit` comme starter. Le but : passer d'une idée écrite à un produit fonctionnel sans toucher au plumbing (auth, paiements, admin, webhooks, cron).
 
-## Prerequisites
+## Étape 0 — Installation (`/setup-kit`)
 
-Avant de commencer, installe :
-
-1. **Claude Code** ([claude.com/claude-code](https://claude.com/claude-code))
-2. **Get Shit Done (GSD)** — le framework de planification phase-par-phase qui orchestre les commandes `/gsd-*` utilisées dans ce workflow. Sans GSD installé, les commandes `/import-banani`, `/gsd-execute-phase`, etc. ne sont pas disponibles. Installe-le selon tes instructions habituelles avant d'ouvrir le starter dans Claude Code.
-3. **pnpm 9+** + **Node 20+**
-4. **Compte Neon** ([neon.tech](https://neon.tech), gratuit, 30 sec) pour ton `DATABASE_URL` + `DIRECT_URL` — c'est la **seule manière** de tourner ce kit. Pas de Docker, pas de Postgres local : tout passe par Neon.
-5. **Compte Banani** + ton `BANANI_API_KEY` (étapes 2-3)
+Ouvre le repo dans Claude Code et tape :
 
 ```
+/setup-kit
+```
+
+La skill [.claude/skills/setup-kit/SKILL.md](.claude/skills/setup-kit/SKILL.md) prend le relais et fait :
+
+1. **Audit** — Node, pnpm, gh CLI, vercel CLI, skills Claude Code (GSD, superpowers, ui-ux-pro-max, context-mode), fichier `.env.local`, MCP config
+2. **Auto-install** — ce qui est automatisable (GSD via `npx`, pnpm via Corepack, Vercel CLI, secrets JWT/ENCRYPTION/CRON)
+3. **Comptes obligatoires** — te demande de créer Neon (Postgres gratuit, **seule dépendance obligatoire** — le kit est cloud-only, pas de Docker) et Banani (design import)
+4. **Skills à coller** — affiche les `/plugin install` à copier-coller pour superpowers / ui-ux-pro-max / context-mode (ne sont pas auto-installables par une IA car ce sont des slash commands du harness Claude Code)
+5. **Setup repo** — `pnpm install` + applique le schéma Prisma + smoke test
+6. **Hand-off** — quand tout est vert, te dit « passe à l'Étape 1 ci-dessous »
+
+Une fois `/setup-kit` terminé, tu as un repo qui boote en local et tu peux passer aux étapes 1-4.
+
+```
+[0. /setup-kit]
+       │
+       ▼
 ┌──────────┐    ┌──────────┐    ┌──────────────┐    ┌──────────────┐
 │ 1. PRD   │ ─▶ │ 2. Banani│ ─▶ │ 3. /import-  │ ─▶ │ 4. /gsd-     │
 │ (texte)  │    │ (design) │    │    banani    │    │    execute-  │

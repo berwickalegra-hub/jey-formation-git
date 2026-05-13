@@ -18,6 +18,9 @@ export default tseslint.config(
       // strict workspace tsconfig (e.g. they reference `@/lib/...` aliases
       // that only exist inside the frontend workspace).
       'examples/**',
+      // Bundled reference skill — provider examples + docs, not production
+      // code. Same rationale as examples/**: illustrative for forkers.
+      'izisaas mobile money skills/**',
     ],
   },
   js.configs.recommended,

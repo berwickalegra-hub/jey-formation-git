@@ -1,0 +1,232 @@
+---
+name: setup-kit
+description: Use when the user wants to bootstrap their dev environment for this Next.js starter from zero. Triggers — "/setup-kit", "je viens d'installer Claude Code", "je débute", "qu'est-ce que je dois installer", "setup my environment", "I just cloned the repo, what now?", "help me start", "I'm a beginner". The kit is cloud-only — there is no Docker, no local Postgres, no MinIO, no Mailpit. Every user creates a free Neon Postgres project, pastes the connection string into .env.local, and runs `pnpm dev`. The skill audits Node/pnpm/CLI tools/Claude Code skills/env vars, auto-installs what is automatable via Bash (GSD CLI, pnpm via Corepack, vercel CLI, secret generation), and surfaces explicit paste-ready commands for the rest (slash commands for plugins, Neon signup URL, env keys). Beginner-friendly — assumes zero prior knowledge, explains each step, stops at every human gate with clear instructions.
+---
+
+# Skill — setup-kit
+
+## Purpose
+
+Take a brand-new user from **« Claude Code just installed, repo just cloned »** to **« `pnpm dev` boots green, `pnpm smoke:auth` passes »** in 5-10 minutes, with maximum hand-holding and minimum hidden assumptions.
+
+The kit is **cloud-only by design**. No Docker. No local Postgres. No MinIO. No Mailpit. The only mandatory dependency is a Postgres database — and a free Neon project takes 30 seconds to create. The 5 optional providers (Resend / R2 / Bictorys / Google OAuth / Sentry / Upstash) are env-gated and inert when absent.
+
+This skill exists because [WORKFLOW.md](../../../WORKFLOW.md) lists ~8 pre-requisites (Node, pnpm, gh CLI, vercel CLI, 4 Claude Code skills, Neon account, Banani account, .mcp.json edit, .env.local creation, secret generation) and a beginner cannot reliably execute that list without guidance.
+
+> **Not a magic button.** Several steps require human action (creating Neon + Banani accounts, copying API keys, pasting `/plugin` commands) — the AI cannot do them. The skill makes these gates **explicit, sequential, and unmissable**, instead of letting a beginner discover them via cryptic build errors.
+
+## When to invoke
+
+- User typed `/setup-kit`
+- User said any of: « je viens d'installer Claude Code », « je débute », « par où je commence », « qu'est-ce que je dois installer », « I'm a beginner », « help me set up », « I just cloned, what now? »
+- The user is clearly lost about pre-requisites (asks « comment lancer le projet ? » with no `node_modules/` and no `.env.local`)
+
+## Beginner Mode — non-negotiable
+
+When this skill is active, you MUST:
+
+1. **Explain every command** before running it (1 line, plain language, no jargon — « pnpm » mérite une phrase, « env var » aussi).
+2. **Stop at every human gate** — never silently skip. Print a numbered TODO with URLs the user clicks.
+3. **Use French by default** (the kit was authored by a French speaker; switch to English only if the user replies in English).
+4. **Never assume prior dev knowledge.**
+5. **Verify after each phase** — re-run the relevant check; never proceed on faith.
+6. **Maintain a TodoWrite list** with one item per phase. Mark items completed as you go.
+7. **Be resumable** — the user may close Claude Code mid-flow. On re-invocation, run the audit first; pick up where it broke.
+
+## Procedure
+
+### Phase 0 — Audit
+
+Run these probes via Bash **in parallel** and build a table.
+
+| Check | Command | Pass criterion |
+|---|---|---|
+| Node version | `node -v 2>/dev/null \|\| echo MISSING` | starts with `v20.` or higher |
+| pnpm version | `pnpm -v 2>/dev/null \|\| echo MISSING` | starts with `9.` or higher |
+| GitHub CLI auth | `gh auth status 2>&1 \| head -1` | « Logged in to github.com » present |
+| Vercel CLI | `vercel --version 2>/dev/null \|\| echo MISSING` | semver string |
+| Repo `frontend/.env.local` | `test -f frontend/.env.local && echo EXISTS \|\| echo MISSING` | EXISTS |
+| Repo `node_modules` | `test -d frontend/node_modules && echo EXISTS \|\| echo MISSING` | EXISTS |
+| MCP config | `test -f .mcp.json && echo EXISTS \|\| echo MISSING` | EXISTS |
+| `DATABASE_URL` set | `grep -q '^DATABASE_URL=postgresql://' frontend/.env.local 2>/dev/null && echo SET \|\| echo UNSET` | SET (must point at Neon, see Phase 4) |
+| `BANANI_API_KEY` set | `grep -q '^BANANI_API_KEY=.\+' frontend/.env.local 2>/dev/null && echo SET \|\| echo UNSET` | SET |
+
+For Claude Code skills, check the system-reminder context loaded at session start — these 4 skill names must appear in the active skills list:
+- `gsd-*` family (any one — e.g. `gsd-execute-phase`)
+- `superpowers:*` (any — e.g. `superpowers:using-superpowers`)
+- `ui-ux-pro-max`
+- `context-mode:*` (any — e.g. `context-mode:context-mode`)
+
+Print the result as a checklist:
+
+```
+🔍 AUDIT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+SYSTÈME
+  ✅ Node 20.x       ❌ pnpm (manquant)
+  ⏳ gh CLI (pas authentifié)  ❌ Vercel CLI
+  ✅ .mcp.json présent
+
+CLAUDE CODE SKILLS
+  ❌ GSD             ❌ superpowers
+  ❌ ui-ux-pro-max   ❌ context-mode
+
+REPO
+  ❌ frontend/.env.local manquant
+  ❌ frontend/node_modules manquant
+  ❌ DATABASE_URL pas défini (Neon requis)
+  ❌ BANANI_API_KEY pas défini
+
+COMPTES (action humaine requise)
+  🙋 Neon Postgres   🙋 Banani
+  🙋 GitHub          🙋 Vercel
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Phase 1 — Outils système
+
+For each MISSING item, take the action below. **NEVER skip a missing one silently.**
+
+| Manquant | Action AI | Action humaine |
+|---|---|---|
+| **Node < 20** | — | « Va sur https://nodejs.org/en/download → installe la version LTS (≥ 20). Relance `/setup-kit` après. » Stop. |
+| **pnpm** | `corepack enable && corepack prepare pnpm@latest --activate` | Aucune (Corepack ship avec Node 20) |
+| **gh CLI** | Sur macOS : `brew install gh` après confirmation. Sinon afficher https://cli.github.com/ | Puis `gh auth login` — interactif, choisir « GitHub.com » → « HTTPS » → ouvrir le navigateur |
+| **Vercel CLI** | `npm i -g vercel` (auto, sûr) | Puis `vercel login` — interactif |
+
+After each install, **re-run the matching probe** to confirm. If install fails, do not proceed — explique l'erreur en français simple et propose **une seule** alternative.
+
+### Phase 2 — Skills Claude Code
+
+Les 4 skills s'installent différemment :
+
+**GSD — automatable via Bash :**
+
+```
+npx get-shit-done-cc@latest
+```
+
+Lance-le. Confirme le succès via l'output de l'installer.
+
+**superpowers / ui-ux-pro-max / context-mode — paste-required.**
+
+Ces skills utilisent des commandes `/plugin` (built-ins du harness Claude Code). **L'IA ne peut PAS taper ses propres slash commands.** Affiche-les comme bloc à copier-coller :
+
+```
+Copie-colle ces 5 commandes une par une dans Claude Code (Entrée entre chaque) :
+
+/plugin install superpowers@claude-plugins-official
+/plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill
+/plugin install ui-ux-pro-max@ui-ux-pro-max-skill
+/plugin marketplace add mksglu/context-mode
+/plugin install context-mode@context-mode
+```
+
+Une fois confirmé : « Redémarre Claude Code (les skills se chargent au démarrage de la session) puis relance `/setup-kit` pour vérifier. »
+
+### Phase 3 — Compte Neon (la SEULE dépendance obligatoire)
+
+Le kit est **cloud-only** — pas de Postgres local. Une fois Neon en place, tout le reste boote.
+
+Étapes (un compte à la fois, attends confirmation entre chaque) :
+
+1. **Inscription Neon** — « Va sur https://neon.tech, inscription gratuite (Google / GitHub OK). 30 secondes. Confirme quand c'est fait. »
+2. **Création projet** — « Dans le dashboard Neon, clique "New Project". Nomme-le comme tu veux. Sélectionne la région la plus proche. Confirme quand c'est créé. »
+3. **Copier les 2 URLs** — « Dans le dashboard du projet :
+   - `DATABASE_URL` = la version qui contient **`-pooler`** dans le hostname (pour l'app)
+   - `DIRECT_URL` = la version **SANS** `-pooler` (pour `prisma migrate`)
+   - Colle-les ici dans le chat (l'IA va les écrire dans `.env.local` pour toi). »
+4. **AI écrit `.env.local`** — `cp .env.example frontend/.env.local` puis `Edit` pour insérer les deux URLs aux bonnes lignes.
+
+### Phase 4 — Install du repo + secrets
+
+Séquentiel (chaque étape dépend de la précédente) :
+
+1. **Install dependencies** — `pnpm install` (« télécharge toutes les librairies, ~2 min la première fois »).
+2. **Génère les secrets** — pour `JWT_SECRET` / `ENCRYPTION_KEY` / `CRON_SECRET`, lance `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` une fois par clé. Confirme avec le user puis fait l'`Edit` dans `.env.local`.
+3. **Applique le schéma Prisma** — `pnpm db:migrate:deploy` (« crée toutes les tables dans ton Neon Postgres »). Vérifie que ça finit sans erreur.
+
+Stop si une étape échoue. Lis l'erreur, explique en français simple, propose un fix.
+
+### Phase 5 — Compte Banani (design import)
+
+Si l'user veut utiliser le workflow PRD → Banani → `/import-banani` (le chemin canonique de [WORKFLOW.md](../../../WORKFLOW.md)) :
+
+- URL : https://banani.co
+- Inscription gratuite, récupère la clé API (Settings → API Keys)
+- L'IA fait l'`Edit` de `BANANI_API_KEY=...` dans `.env.local` quand le user colle la clé
+- Vérifie que `.mcp.json` à la racine du repo référence bien `${BANANI_API_KEY}` (template livré avec le starter)
+
+Si l'user n'utilise pas Banani, dis-lui : « Saute Banani, tu pourras toujours lancer `/gsd-discuss-phase 1` avec ton PRD à la place. »
+
+### Phase 6 — Comptes optionnels (skip-friendly)
+
+Pour chaque, demande : « Tu veux activer [feature] dès maintenant ? oui / non / plus tard ». Si `non` ou `plus tard`, skip sans jugement — le kit boote très bien sans (voir CLAUDE.md « Optional providers boot conditionally »).
+
+| Feature | Provider | URL | Clés à coller |
+|---|---|---|---|
+| Cache / rate-limit | Upstash Redis | https://upstash.com | `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` |
+| Emails transactionnels | Resend | https://resend.com | `RESEND_API_KEY` + `EMAIL_FROM` |
+| Upload de fichiers | Cloudflare R2 | https://dash.cloudflare.com | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` |
+| Sign in with Google | Google Cloud Console | https://console.cloud.google.com | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` |
+| Paiements mobile money | Bictorys | https://bictorys.com | `BICTORYS_API_KEY` + `BICTORYS_PRIVATE_KEY` (deux clés DISTINCTES — voir CLAUDE.md invariants) |
+| Observabilité | Sentry | https://sentry.io | `SENTRY_DSN` |
+
+Pour chaque clé collée, `Edit` `frontend/.env.local` après confirmation. Ne jamais coller les clés dans le chat visible (toujours via Edit).
+
+### Phase 7 — Smoke test final
+
+```bash
+pnpm format && pnpm lint && pnpm typecheck && pnpm test
+```
+
+Puis dans un second terminal :
+
+```bash
+pnpm dev
+```
+
+Puis :
+
+```bash
+pnpm smoke:auth
+```
+
+Si tout vert : 🎉 imprime un récap félicitations + les 4 prochaines étapes du [WORKFLOW.md](../../../WORKFLOW.md) :
+
+1. Écris ton PRD dans `.planning/PRD.md`
+2. Designe sur Banani (sélectionne tes écrans)
+3. Tape `/import-banani`
+4. Tape `/gsd-execute-phase 1`
+
+Si quelque chose rouge : stop, colle l'output qui échoue, explique en français simple, propose un fix. **Ne dis jamais « tout est prêt »** tant que les 3 commandes ne sont pas vertes.
+
+## Failure modes — be explicit
+
+| Symptôme | Cause probable | Réponse |
+|---|---|---|
+| `pnpm install` échoue avec EACCES | Permissions npm cassées | Suggère `corepack enable` ; ne **jamais** suggérer `sudo` (mauvaise pratique) |
+| `pnpm db:migrate:deploy` échoue avec `P1001 connection refused` | `DATABASE_URL` faux ou Neon offline | Vérifie l'URL dans `.env.local` (commence par `postgresql://`, contient `-pooler`, finit par `?sslmode=require`) ; teste Neon dashboard |
+| `pnpm db:migrate:deploy` échoue avec « prepared statement does not exist » | L'user a mis l'URL pooler dans `DIRECT_URL` au lieu de la non-pooled | Re-vérifier que `DIRECT_URL` n'a PAS `-pooler` dans le hostname |
+| `pnpm dev` démarre mais `/api/auth/signup` renvoie 500 | `JWT_SECRET` / `ENCRYPTION_KEY` manquants ou trop courts (< 32 chars) | Re-run Phase 4 step 2 (génération de secrets) |
+| User dit « les commandes `/plugin` ne marchent pas » | Pas dans Claude Code ou marketplace pas accessible | Vérifier qu'il est dans le chat Claude Code (pas dans le terminal shell) |
+| User dit « après `/plugin install` rien ne change » | Skill chargé au prochain démarrage de session | Demande à l'user de redémarrer Claude Code |
+| User demande « pourquoi pas de Docker ? » | Habitude des autres starters | Réponds : « Ce kit est cloud-only par design — Neon free tier remplace Postgres local en 30 sec, et tu skip 2 Go de Docker Desktop. » |
+
+## Anti-patterns — ne fais JAMAIS
+
+- ❌ Lancer `sudo` quoi que ce soit
+- ❌ Modifier `~/.zshrc` / `~/.bashrc` sans demander
+- ❌ Suggérer Docker à un user qui demande pourquoi pas de DB locale (le kit est cloud-only par décision)
+- ❌ Installer Node via Homebrew si l'user est sur Windows / Linux (utiliser nodejs.org)
+- ❌ Cacher les erreurs avec `|| true` ou `2>/dev/null` (sauf pour les probes Phase 0)
+- ❌ Réécrire `.env.local` complet — toujours `Edit` ligne par ligne après avoir lu le fichier
+- ❌ Continuer la phase suivante si la précédente est rouge
+- ❌ Coller des API keys dans la réponse visible (toujours via Edit dans `.env.local`)
+
+## Notes pour les forks
+
+Ce skill est bundlé dans le starter mais peut diverger par fork :
+- Si ton fork retire Bictorys / Banani / etc. via [PRUNING.md](../../../PRUNING.md), mets à jour la Phase 6 pour ne plus proposer ces options.
+- Si ton fork ajoute un provider (Stripe, Paystack, etc.), ajoute-le en Phase 6.
+- Le manifeste machine-lisible vit dans [.planning/features.json](../../../.planning/features.json) — un futur enhancement de cette skill pourrait dériver Phase 6 automatiquement de ce JSON.

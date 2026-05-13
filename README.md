@@ -4,22 +4,37 @@ Headless full-stack starter for the Next.js 16 + Prisma 5 + Neon + Upstash + R2 
 
 See [.planning/PROJECT.md](.planning/PROJECT.md) for the project vision and [STATUS.md](STATUS.md) for the port progress.
 
+## Beginner workflow (PRD → Banani → ship)
+
+**The magic phrase.** Open this project in Claude Code and type exactly:
+
+```
+Lis WORKFLOW.md et dis-moi ce que je dois faire pour démarrer mon projet.
+```
+
+(English: *"Read WORKFLOW.md and tell me what to do to start my project."*)
+
+The AI will read [WORKFLOW.md](WORKFLOW.md) + [CLAUDE.md](CLAUDE.md), figure out where you are, and guide you through the 4 steps (write your PRD → select screens in Banani → `/import-banani` reconciles design ↔ backend → `/gsd-execute-phase` ships the code).
+
+Prerequisite: install **Get Shit Done (GSD)** before opening the starter in Claude Code (the `/gsd-*` commands are GSD-native; only `/import-banani` is shipped by this starter).
+
 ## Quickstart
+
+The starter is **cloud-only by design** — no local containers, no daemons to install. You need a Postgres database (free tier on [Neon](https://neon.tech) is the canonical choice) and that's it.
 
 ```bash
 gh repo create my-project --template=<your-org>/amadou-monolith --private --clone
 cd my-project
 cp .env.example .env.local         # fill DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY, CRON_SECRET at minimum
 pnpm install
-docker compose up -d               # local Postgres + Redis + MinIO + Mailpit
-pnpm db:migrate:deploy             # apply versioned migrations
+pnpm db:migrate:deploy             # apply versioned migrations against your Neon DB
 pnpm dev                           # http://localhost:3000
 # in another terminal, after first signup:
 pnpm db:make-superadmin you@example.com
 pnpm smoke:auth                    # verify auth happy path end-to-end
 ```
 
-Local docker-compose connection string: `postgresql://postgres:postgres@localhost:5432/amadou_dev`. Production-shape Neon URL example lives in `.env.example` (the `-pooler` host with `?pgbouncer=true&connection_limit=1&pool_timeout=15&sslmode=require`).
+To get `DATABASE_URL` + `DIRECT_URL`: create a free project at https://neon.tech, then copy two strings from the dashboard — the **`-pooler`** host as `DATABASE_URL` (with `?pgbouncer=true&connection_limit=1&pool_timeout=15&sslmode=require`) and the non-pooled host as `DIRECT_URL`. Examples live in `.env.example`.
 
 ## Stack
 
@@ -52,7 +67,7 @@ Optional groups (set the vars to enable; absent = inert):
 | Sentry | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN`, `SENTRY_TRACES_SAMPLE_RATE?`, ... | Silent no-op (zero perf cost) |
 | Upstash Redis | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | In-memory rate-limit fallback with a `logger.warn` at boot — DO NOT run in production without Upstash |
 
-Full env reference with all flags: see [`frontend/.env.example`](frontend/.env.example).
+Full env reference with all flags: see [`.env.example`](.env.example) at the repo root (14 sections, every key documented with defaults + impact).
 
 ## Route Inventory
 
@@ -157,17 +172,28 @@ The smoke script requires `DATABASE_URL` and `JWT_SECRET` set (it peeks the veri
 5. Standalone output is auto-detected (`next.config.ts` enables it); no extra config.
 6. Sentry / OTel init details live in [`frontend/instrumentation.ts`](frontend/instrumentation.ts) and the `sentry.*.config.ts` files — read those for hook-ordering specifics.
 
-To verify the Docker build locally (matches Vercel runtime closely):
+## Design system — fully swappable
 
-```bash
-docker build -f frontend/Dockerfile -t amadou-monolith .
-docker run --rm -p 3000:3000 \
-  -e DATABASE_URL=... -e JWT_SECRET=... -e ENCRYPTION_KEY=... \
-  amadou-monolith
-curl -fsS http://localhost:3000/api/health    # → {"ok":true,...}
-```
+The starter ships **no UI components** by design. What you get:
 
-The build context is the repo root because the Dockerfile copies `pnpm-workspace.yaml` and `frontend/`.
+- [frontend/src/app/page.tsx](frontend/src/app/page.tsx) — `return null` placeholder; write your homepage here
+- [frontend/src/app/layout.tsx](frontend/src/app/layout.tsx) — `Inter` font + `<html>/<body>` shell + 2 client contexts (`AuthProvider`, `ToastProvider`). Both contexts are **logic-only** (zero design coupling) — keep them, restyle the toasts in your own components
+- [frontend/src/app/error.tsx](frontend/src/app/error.tsx) — Tailwind-styled error boundary; replace with your own
+- [frontend/src/app/globals.css](frontend/src/app/globals.css) — single line `@import 'tailwindcss';` (Tailwind v4 zero-config). Drop the line + remove `@tailwindcss/postcss` from [postcss.config.mjs](frontend/postcss.config.mjs) to leave Tailwind out entirely.
+- [examples/frontend-pages/](examples/frontend-pages/) — 11 reference Tailwind pages (login, signup, verify-email, forgot/reset-password, dashboard, withdrawals, payment-success/failure, auth-error, admin/{layout,users,withdrawals}). Copy and restyle, or rebuild from scratch — they consume the same `/api/*` routes either way.
+
+**No server lib touches the DOM.** Routes return `NextResponse.json(...)` only. You can ship a plain-React UI, a shadcn/ui front, a Mantine dashboard, a SwiftUI iOS app via the same JSON contract — the backend stays unchanged.
+
+## Bundled Claude Code skills
+
+Forks open in Claude Code automatically pick up two design-system skills under [.claude/skills/](.claude/skills/) — they fill the "headless = no UI" gap for beginners:
+
+| Skill | Trigger phrases | What it does |
+|---|---|---|
+| [`banani-design-implementation`](.claude/skills/banani-design-implementation/SKILL.md) | "build this from Banani", "use the Banani MCP", "reproduce this screen" | Pixel-perfect 1:1 reproduction of selected Banani screens via the Banani MCP. Reads `CLAUDE.md` for the project stack (no Tailwind/React assumptions), plans the work, tracks progress across sessions. |
+| [`ui-ux-pro-max`](.claude/skills/ui-ux-pro-max/SKILL.md) | "design", "build", "improve", "review UI" + any of: button/modal/navbar/dashboard/landing/SaaS/glassmorphism/etc. | Searchable design intelligence: 67 styles, 96 palettes, 57 font pairings, 99 UX guidelines, 25 chart types across 13 stacks (Next.js, React, Vue, SwiftUI, Flutter…). Includes shadcn/ui MCP integration. |
+
+Beginners can therefore go from `gh repo create --template` to a designed UI in one chat: describe the screen → either skill takes over → the API routes are already wired.
 
 ## Project layout
 
@@ -176,7 +202,6 @@ amadou-monolith/
 ├── frontend/                    The Next.js 16 app (full-stack)
 │   ├── prisma/                  schema.prisma + migrations
 │   ├── scripts/                 make-superadmin.ts, seed-dev.ts, smoke-auth.ts (run via tsx)
-│   ├── Dockerfile               multi-stage Node 20 build with standalone output
 │   ├── vercel.json              cron schedules (5 entries)
 │   ├── .env.example             env reference
 │   └── src/
@@ -186,7 +211,6 @@ amadou-monolith/
 │           └── server/          server-only libs (auth, crypto, payments, oauth, webhook, outbox, cron, ...)
 ├── examples/frontend-pages/     reference UIs to copy and restyle (admin/, auth-error)
 ├── .planning/                   roadmap, phases, decisions (gsd workflow)
-├── docker-compose.yml           Postgres + Redis + MinIO + Mailpit for local dev
 ├── pnpm-workspace.yaml          workspace = frontend/ only
 └── package.json                 orchestrator scripts (proxy `pnpm --filter frontend ...`)
 ```

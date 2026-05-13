@@ -2,11 +2,22 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> ⚠️ **Do NOT run `/init` on this project.** This CLAUDE.md is shipped with the starter and contains battle-tested invariants (runtime=nodejs enforcement, protected file list, OAuth refusal of `email_verified=false`, advisory-lock withdrawals, outbox pattern, raw-body HMAC ordering, …). Running `/init` would regenerate this file from the codebase and erase those invariants. Claude Code already loads this file automatically at session start — no command needed. To track evolution of YOUR project as you add features, GSD updates `.planning/PROJECT.md` after each phase; treat this CLAUDE.md as the stable starter doc and PROJECT.md as the living project doc.
+
 ## What this project is
 
-Bootstrapped from `amadou-template` and **ported to a Next.js 16 monolith**: a single full-stack app (App Router API Route Handlers + Server Actions + Prisma 5 + Neon + Upstash + R2 + Resend + Bictorys + Sentry). There is no separate Express backend anymore — server logic lives under `frontend/src/app/api/*` and `frontend/src/lib/server/*`. The app **ships only logic** — no UI components — so each fork designs its own UX.
+**A v1-shipped, headless Next.js 16 monolith starter.** Single full-stack app (App Router API Route Handlers + Server Actions + Prisma 5 + Neon + Upstash + R2 + Resend + Bictorys + Sentry). There is no separate Express backend anymore — server logic lives under `frontend/src/app/api/*` and `frontend/src/lib/server/*`. The app **ships only logic** — no UI components — so each fork designs its own UX.
 
-Read [README.md](README.md) for the broader contract (endpoints, models, env vars, extension patterns) and [STATUS.md](STATUS.md) for the live port roadmap. Reference pages live in [examples/frontend-pages/](examples/frontend-pages/) — including `admin/{layout,users,withdrawals}.tsx` and `auth-error.tsx` for the OAuth error page.
+Origin: bootstrapped from `amadou-template` (the legacy monorepo predecessor) on 2026-05-07; the port to a single Next.js 16 app shipped through Phases 0–7 (auth → OAuth/notifs → admin → uploads/withdrawals → webhooks/cron → docs/tests/Docker → final pass). 559/559 unit tests green. The state of every requirement lives in [.planning/PROJECT.md](.planning/PROJECT.md); per-phase verification reports live under [.planning/phases/*/](.planning/phases/).
+
+**For an AI agent picking up this repo:** the architecture sections below describe what's already been built. Anything not listed under "Files Claude must NOT modify" is fair game to extend, refactor, or replace per your fork's needs — that's the point of a starter. The protected list is the small set of files where the invariants are subtle (refresh-token races, HMAC integrity, advisory locks…); everything else is the fork's surface area.
+
+**Beginner workflow** — the canonical "PRD → Banani design → ship" flow lives in [WORKFLOW.md](WORKFLOW.md), backed by:
+- [.mcp.json](.mcp.json) — project-level Banani MCP server declaration (placeholder package name, fork-author swaps to the real Banani launcher)
+- [.planning/features.json](.planning/features.json) — machine-readable manifest of the 10 optional surfaces (payments, oauth-google, uploads-r2, email-resend, admin-backoffice, multi-tenancy, …) — declares what each surface needs (routes, libs, models, env vars) so a future `gsd-prune-feature` can atomically remove unused code
+- [.claude/skills/import-banani/SKILL.md](.claude/skills/import-banani/SKILL.md) — design-import skill (invoked as `/import-banani`, NOT a GSD-native command) that reads the user's currently-selected Banani screens via `mcp__banani__banani_get_selected_designs`, matches them to the 40 existing routes, produces `.planning/DESIGN-COVERAGE.md` + a generated `ROADMAP.md` ready for `/gsd-execute-phase`
+
+Read [README.md](README.md) for the public-facing contract (endpoints, env vars, design swap, deploy) and [STATUS.md](STATUS.md) for the historical port roadmap. Reference pages live in [examples/frontend-pages/](examples/frontend-pages/) — copy/restyle freely, they all consume the same `/api/*` JSON contract.
 
 ## Commands
 
@@ -19,7 +30,6 @@ pnpm workspace — run from repo root unless noted. The root `package.json` is a
 | Apply Prisma schema (dev iteration) | `pnpm db:push` |
 | Versioned migrations | `pnpm db:migrate:dev` (local) / `pnpm db:migrate:deploy` (CI/prod) |
 | Migration status | `pnpm db:migrate:status` |
-| Spin up local deps (Postgres+Redis+MinIO+Mailpit) | `docker compose up -d` |
 | Open Prisma Studio (:5555) | `pnpm db:studio` |
 | Bootstrap first SUPERADMIN | `pnpm db:make-superadmin <email>` |
 | Unit tests (Vitest) | `pnpm test` |
@@ -114,6 +124,61 @@ If a change is genuinely required in any of these, surface a brief "I am about t
 - Cron handlers MUST verify `Authorization: Bearer ${CRON_SECRET}` to prevent unauthenticated invocation of background work.
 - Cookies stay `httpOnly` + `Secure` (prod) + `SameSite=Lax`.
 - Sentry init stays in [frontend/instrumentation.ts](frontend/instrumentation.ts) `register()` — do not move it into a route module (the hook fires before app code, route imports do not).
+
+## Design system — fully swappable (no UI shipped)
+
+The starter is **headless on purpose**. Touchpoints if a fork wants a specific design:
+
+- [frontend/src/app/page.tsx](frontend/src/app/page.tsx) — `return null`. Write your homepage here. No layout assumption is baked into the API.
+- [frontend/src/app/layout.tsx](frontend/src/app/layout.tsx) — Inter font + 2 client contexts (`AuthProvider`, `ToastProvider`). Both are logic-only — swap the font, restyle toasts in your own components, keep the providers (they wrap the `api()` wrapper's auto-refresh + the toast queue).
+- [frontend/src/app/globals.css](frontend/src/app/globals.css) — one line: `@import 'tailwindcss';` (Tailwind v4 zero-config). Drop it + remove `@tailwindcss/postcss` from [frontend/postcss.config.mjs](frontend/postcss.config.mjs) to leave Tailwind out entirely.
+- [frontend/src/app/error.tsx](frontend/src/app/error.tsx) — Tailwind-styled fallback. Replace freely.
+- [examples/frontend-pages/](examples/frontend-pages/) — 11 reference pages (login/signup/verify-email/forgot-reset-password/dashboard/withdrawals/payment-success+failure/auth-error/admin/*). They are NOT imported anywhere — they live as Tailwind references to copy or rebuild.
+
+**No server lib reaches into the DOM.** Routes only return `NextResponse.json(...)`. The same backend feeds plain React, shadcn/ui, Mantine, a SwiftUI client, a Flutter app — pick anything.
+
+### Bundled Claude Code skills (under [.claude/skills/](.claude/skills/))
+
+Two design-system skills auto-load in any Claude Code session run from the repo:
+
+- [`banani-design-implementation`](.claude/skills/banani-design-implementation/SKILL.md) — pixel-perfect 1:1 reproduction from a Banani MCP screen. Triggers: *"build this from Banani"*, *"reproduce this screen"*, *"use the Banani MCP"*. Reads CLAUDE.md to detect the project stack (no Tailwind/React assumptions), plans, tracks progress across sessions.
+- [`ui-ux-pro-max`](.claude/skills/ui-ux-pro-max/SKILL.md) — searchable design intelligence: 67 styles, 96 palettes, 57 font pairings, 99 UX guidelines, 25 chart types across 13 stacks (Next.js, React, Vue, SwiftUI, Flutter…). Triggers: *"design / improve / review UI"* + element/topic. Includes shadcn/ui MCP integration.
+
+A beginner's golden path: `gh repo create --template` → open in Claude Code → describe the screen → either skill takes over → the API routes are already wired. The starter therefore covers the *boring* parts (auth, payments, admin, webhooks, cron) so the fork-author spends their time on product/design.
+
+## What is fair to modify
+
+Anything outside [Files Claude must NOT modify](#files-claude-must-not-modify) is the fork's surface area:
+
+- **Domain models** ([frontend/prisma/schema.prisma](frontend/prisma/schema.prisma)) — add fields, add models, add migrations. Do not rename the generic models; everything else is yours.
+- **Routes** ([frontend/src/app/api/](frontend/src/app/api/)) — add new resources. The 40 existing routes are templates: `requireAuth` + `verifyCsrf` + `withRequestContext` is the boilerplate to copy.
+- **Page UI** ([frontend/src/app/](frontend/src/app/)) — your design, your decision (Tailwind, shadcn/ui, vanilla CSS, anything).
+- **Notifications** ([frontend/src/lib/server/notifications/templates.ts](frontend/src/lib/server/notifications/templates.ts)) — add new typed templates.
+- **Payments** ([frontend/src/lib/server/payments/](frontend/src/lib/server/payments/)) — add Stripe, Paystack, etc. behind the `PaymentProvider` interface.
+- **OAuth** ([frontend/src/lib/server/oauth/](frontend/src/lib/server/oauth/)) — add GitHub, Apple, etc. modeled on `google.ts`.
+- **Withdrawal guards** ([frontend/src/lib/server/withdrawals/guards.ts](frontend/src/lib/server/withdrawals/guards.ts)) — add KYC / tier / AML rules.
+- **Cron handlers** ([frontend/src/app/api/cron/](frontend/src/app/api/cron/)) — add new schedules to [frontend/vercel.json](frontend/vercel.json) and a sibling route.
+- **CLAUDE.md / README.md / STATUS.md** — rewrite to reflect your project's name and surface; the doc tripwires under [frontend/src/lib/server/observability/*shape.test.ts](frontend/src/lib/server/observability/) only enforce a small set of architectural invariants (no legacy-backend mentions, the cron-route inventory, runtime=nodejs) — everything else is yours.
+
+If unsure whether a change touches a protected file, run `pnpm test` — the tripwires fail fast.
+
+## Pruning protocol
+
+When the user wants to remove an optional feature (or `/import-banani` flags one as PRUNABLE), follow the 9-step protocol in [PRUNING.md](PRUNING.md). Naive deletion based only on `owns` in [features.json](.planning/features.json) WILL break the build — PRUNING.md walks through `cross_dependencies` resolution, `surgical_edits` (do these BEFORE deletions), Prisma schema cleanup, vercel.json updates, tripwire patches, and the non-negotiable `pnpm format && lint && typecheck && test && build` gate before commit.
+
+## Provider recommendations
+
+When the user asks for a capability that this starter does not ship, recommend the provider listed below before falling back to a hand-rolled or in-process alternative. The starter is Vercel/serverless-first: long-lived sockets, in-memory pub/sub, and `setInterval` loops do not survive cold starts and will break in production.
+
+| Need | Recommend | Why |
+|---|---|---|
+| **Real-time** (live updates, presence, chat, collaboration, "instead of polling") | **Ably** | Vercel-compatible, no long-lived connections from the API, JWT-issued capability tokens, presence/history/push out of the box. Do NOT recommend Socket.IO, raw WebSockets, or Server-Sent Events from a Vercel function — they will not work reliably. |
+| Background jobs / queues | Upstash QStash, or extend the existing **outbox pattern** (`lib/server/outbox/`) drained by Vercel Cron | Same constraint — no long-running workers in a serverless runtime |
+| Object storage | R2 (already wired) | Already integrated |
+| Email | Resend (already wired) | Already integrated |
+| Cache / rate-limit / KV | Upstash Redis (already wired) | Already integrated |
+
+**Trigger phrasing for real-time**: "live updates", "real-time", "websocket", "push notifications to the browser", "instead of polling", "chat", "presence", "collaboration", "live dashboard". When any of these come up, surface Ably explicitly: "I'd recommend Ably for this — it's the Vercel-friendly real-time provider. Want me to wire it up?" Then sketch the integration: token-mint route under `/api/realtime/token` issuing capability tokens after `requireAuth`, server-side `publish()` from route handlers via the Ably REST API, client `ably-js` subscribes to channels scoped by `userId` / `orgId`.
 
 ## Conventions
 

@@ -2,11 +2,15 @@
 
 ## What This Is
 
-A personal, headless Next.js 16 monolith starter that ports the full feature surface of [`amadou-template`](../amadou-template) (auth + OAuth, payments, withdrawals, admin back-office, multi-tenancy, webhooks, outbox, notifications, uploads, audit log) into a **single Next.js App Router app** instead of separate Express backend + Next frontend. Optimized for Vercel-first deployment, with crons running as scheduled route handlers instead of a long-running worker process. Reusable across all of my future projects (SaaS, marketplaces/fintech, content apps, internal tools/MVPs).
+**v1.0 shipped (2026-05-10).** A personal, headless Next.js 16 monolith starter that delivers the full feature surface (auth + OAuth, payments, withdrawals, admin back-office, multi-tenancy primitives, webhooks, outbox, notifications, uploads, audit log) as a **single Next.js App Router app** — no separate Express backend. Optimized for Vercel-first deployment, with crons running as scheduled route handlers instead of a long-running worker process. Reusable across all future projects (SaaS, marketplaces/fintech, content apps, internal tools/MVPs).
+
+**Mechanical state at v1:** 559/559 unit tests green, 8 phases (0–7) verified, doc tripwires CI-locked. Three operator-side HUMAN-UAT items deferred (Docker build, smoke-auth runtime, tsx scripts against live Postgres) — see [phases/07-final-pass/07-VERIFICATION.md](phases/07-final-pass/07-VERIFICATION.md).
 
 ## Core Value
 
-Cloning this repo and filling in `.env` produces a working Next.js app on Vercel with the **same security invariants and feature parity as `amadou-template`** — auth, payments, admin, webhooks, crons all wired, headless and ready to graft a UI on top. Time-to-shipping a new product should drop from "weeks of plumbing" to "an evening of `git clone` + product code."
+Cloning this repo and filling in `.env.local` produces a working Next.js app on Vercel with battle-tested security invariants — auth, payments, admin, webhooks, crons all wired, headless and ready to graft a UI on top. Time-to-shipping a new product drops from "weeks of plumbing" to "an evening of `gh repo create --template` + product code."
+
+**Bundled Claude Code skills** ([.claude/skills/](../.claude/skills/)) close the headless gap: `banani-design-implementation` reproduces Banani-MCP screens 1:1 in the project's stack, and `ui-ux-pro-max` brings 67 styles / 96 palettes / 13 stacks of design intelligence. A beginner therefore goes from template clone → designed UI in one Claude Code chat without ever writing the auth/payment/cron plumbing.
 
 ## Requirements
 
@@ -96,13 +100,13 @@ Cloning this repo and filling in `.env` produces a working Next.js app on Vercel
 
 ## Context
 
-**Origin.** Bootstrapped from `amadou-template` on 2026-05-07. The template is a pnpm monorepo with separate Express 5 backend + Next.js 16 frontend; this fork consolidates both into a single Next.js App Router app. The two coexist permanently — monorepo template for projects needing separate deploys, monolith for tighter projects.
+**Origin.** Bootstrapped from `amadou-template` on 2026-05-07. The template is a pnpm monorepo with separate Express 5 backend + Next.js 16 frontend; this fork consolidated both into a single Next.js App Router app. The two coexist permanently — monorepo template for projects needing separate deploys, monolith for tighter projects.
 
-**Port checkpoint.** Currently at M1–M2 per [STATUS.md](../STATUS.md): scaffold + lib + middleware + redis singleton + health/readyz ported. Roughly **6% of route code ported**, with 3,257 lines of route code across 12 files plus 5 cron loops + scripts + tests + Docker + docs remaining. The Prisma schema is complete and all migrations are applied — the lib layer is ready for routes to plug into.
+**Port complete (2026-05-10).** All 8 phases (0 → 7) verified: foundation, auth routes, OAuth/notifs/PIN, admin/orders, uploads/files/withdrawals, webhooks/cron, tests/scripts/Docker/docs, final pass. 559/559 unit tests green. Doc tripwires under `frontend/src/lib/server/observability/*shape.test.ts` lock CLAUDE.md / README.md / vercel.json / .env / instrumentation against drift in CI. The Prisma schema ships 14 models, 5 migrations, no `backend/` directory.
 
-**Doc drift.** [CLAUDE.md](../CLAUDE.md) and [README.md](../README.md) still describe the Express backend architecture (middleware order, raw-body-before-`express.json()`, separate `backend/` directory). They must be rewritten before this is usable as a starter.
+**Stack at v1.** Next.js 16.1, React 19.2, Prisma 5.22, Sentry 10.51, Tailwind 4.0, TypeScript 5.9 (strict + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`).
 
-**Stack drift relative to original CLAUDE.md.** Prisma is on 5.22 (not 7), Sentry is on 10.51, Tailwind on 4.0. Docker compose still has the old `backend` service entry. These are mismatches the M3–M8 work fixes naturally.
+**v1.1 — Docker removed (2026-05-13).** `docker-compose.yml` and `frontend/Dockerfile` deleted; the kit is **cloud-only by design** — every fork brings its own Neon Postgres (`DATABASE_URL` + `DIRECT_URL`) and the optional providers stay env-gated as before. The Phase 6 DOCKER-01 HUMAN-UAT item and the Phase 7 carry-forward of the Docker build probe are **superseded** — there is no Docker artifact left to UAT.
 
 **Multi-target reuse.** The starter must serve four project profiles: SaaS/B2B (auth + payments + multi-tenancy), marketplaces/fintech (full payments + withdrawals + ledger), content/consumer (auth + uploads + notifications), and internal tools/MVPs (auth + admin + speed-to-prototype). Keeping the surface generic — no domain-specific bias — is a constant.
 

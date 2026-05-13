@@ -51,9 +51,10 @@ let _bucket: string | null = null;
  * call reads `process.env`, constructs the client, and caches both the
  * client and the bucket name. Subsequent calls reuse the cached instance.
  *
- * When `R2_ENDPOINT` is set (e.g., `http://localhost:9000` for Minio),
- * we use it AND enable `forcePathStyle` (Minio requires path-style;
- * R2 prefers virtual-hosted, so we stick to virtual-hosted in prod).
+ * When `R2_ENDPOINT` is set (pointing at any S3-compatible host that
+ * requires path-style URLs), we use it AND enable `forcePathStyle`.
+ * Cloudflare R2 prefers virtual-hosted, so we stick to virtual-hosted
+ * when no override is set.
  *
  * Throws `StorageNotConfiguredError` if any of the four required envs
  * is missing or empty. The route translates that to 503.
@@ -75,9 +76,8 @@ export function getR2Client(): S3Client {
     region: 'auto',
     endpoint: endpointOverride || `https://${accountId}.r2.cloudflarestorage.com`,
     credentials: { accessKeyId, secretAccessKey },
-    // Minio (used for local dev via docker-compose) requires path-style;
-    // Cloudflare R2 prefers virtual-hosted. Use the override flag as the
-    // signal — endpoint overrides only happen for non-prod targets.
+    // Some S3-compatible hosts require path-style; Cloudflare R2 prefers
+    // virtual-hosted. Use the override flag as the signal.
     forcePathStyle: !!endpointOverride,
   });
   _bucket = bucket;

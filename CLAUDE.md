@@ -2,20 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-> ⚠️ **Do NOT run `/init` on this project.** This CLAUDE.md is shipped with the starter and contains battle-tested invariants (runtime=nodejs enforcement, protected file list, OAuth refusal of `email_verified=false`, advisory-lock withdrawals, outbox pattern, raw-body HMAC ordering, …). Running `/init` would regenerate this file from the codebase and erase those invariants. Claude Code already loads this file automatically at session start — no command needed. To track evolution of YOUR project as you add features, GSD updates `.planning/PROJECT.md` after each phase; treat this CLAUDE.md as the stable starter doc and PROJECT.md as the living project doc.
+> ⚠️ **Do NOT run `/init` on this project.** This CLAUDE.md is shipped with the starter and contains battle-tested invariants (runtime=nodejs enforcement, protected file list, OAuth refusal of `email_verified=false`, advisory-lock withdrawals, outbox pattern, raw-body HMAC ordering, …). Running `/init` would regenerate this file from the codebase and erase those invariants. Claude Code already loads this file automatically at session start — no command needed.
 
 ## What this project is
 
 **A v1-shipped, headless Next.js 16 monolith starter.** Single full-stack app (App Router API Route Handlers + Server Actions + Prisma 5 + Neon + Upstash + R2 + Resend + Bictorys + Sentry). There is no separate Express backend anymore — server logic lives under `frontend/src/app/api/*` and `frontend/src/lib/server/*`. The app **ships only logic** — no UI components — so each fork designs its own UX.
 
-Origin: bootstrapped from `amadou-template` (the legacy monorepo predecessor) on 2026-05-07; the port to a single Next.js 16 app shipped through Phases 0–7 (auth → OAuth/notifs → admin → uploads/withdrawals → webhooks/cron → docs/tests/Docker → final pass). 559/559 unit tests green. The state of every requirement lives in [.planning/PROJECT.md](.planning/PROJECT.md); per-phase verification reports live under [.planning/phases/*/](.planning/phases/).
+Origin: bootstrapped from `amadou-template` (the legacy monorepo predecessor) on 2026-05-07; the port to a single Next.js 16 app shipped through 7 phases (auth → OAuth/notifs → admin → uploads/withdrawals → webhooks/cron → docs/tests → final pass). 559/559 unit tests green.
 
 **For an AI agent picking up this repo:** the architecture sections below describe what's already been built. Anything not listed under "Files Claude must NOT modify" is fair game to extend, refactor, or replace per your fork's needs — that's the point of a starter. The protected list is the small set of files where the invariants are subtle (refresh-token races, HMAC integrity, advisory locks…); everything else is the fork's surface area.
 
-**Beginner workflow** — the canonical "PRD → Banani design → ship" flow lives in [WORKFLOW.md](WORKFLOW.md), backed by:
-- [.mcp.json](.mcp.json) — project-level Banani MCP server declaration (placeholder package name, fork-author swaps to the real Banani launcher)
-- [.planning/features.json](.planning/features.json) — machine-readable manifest of the 10 optional surfaces (payments, oauth-google, uploads-r2, email-resend, admin-backoffice, multi-tenancy, …) — declares what each surface needs (routes, libs, models, env vars) so a future `gsd-prune-feature` can atomically remove unused code
-- [.claude/skills/import-banani/SKILL.md](.claude/skills/import-banani/SKILL.md) — design-import skill (invoked as `/import-banani`, NOT a GSD-native command) that reads the user's currently-selected Banani screens via `mcp__banani__banani_get_selected_designs`, matches them to the 40 existing routes, produces `.planning/DESIGN-COVERAGE.md` + a generated `ROADMAP.md` ready for `/gsd-execute-phase`
+**Beginner workflow (vibe coding)** — clone, plug a Neon `DATABASE_URL`, open Claude Code, describe what you want, ship. See [WORKFLOW.md](WORKFLOW.md). The starter ships:
+- [.mcp.json](.mcp.json) — empty MCP server map by default. Banani is optional; if the user wants it, the `setup-kit` skill walks through pasting their MCP connection block.
+- [.planning/features.json](.planning/features.json) — machine-readable manifest of the optional surfaces (payments, oauth-google, uploads-r2, email-resend, admin-backoffice, multi-tenancy, …) — declares what each surface needs so manual pruning per [PRUNING.md](PRUNING.md) stays safe.
+- GSD (`get-shit-done-cc`) is **not** a prerequisite. It's an optional level-up workflow surfaced after a beginner's first feature, not by default.
 
 Read [README.md](README.md) for the public-facing contract (endpoints, env vars, design swap, deploy) and [STATUS.md](STATUS.md) for the historical port roadmap. Reference pages live in [examples/frontend-pages/](examples/frontend-pages/) — copy/restyle freely, they all consume the same `/api/*` JSON contract.
 

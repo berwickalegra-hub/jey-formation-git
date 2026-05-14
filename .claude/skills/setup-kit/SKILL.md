@@ -1,6 +1,6 @@
 ---
 name: setup-kit
-description: Use when the user wants to bootstrap their dev environment for this Next.js starter from zero. Triggers — "/setup-kit", "je viens d'installer Claude Code", "je débute", "qu'est-ce que je dois installer", "setup my environment", "I just cloned the repo, what now?", "help me start", "I'm a beginner". The kit is cloud-only — there is no Docker, no local Postgres, no MinIO, no Mailpit. Every user creates a free Neon Postgres project, pastes the connection string into .env.local, and runs `pnpm dev`. The skill audits Claude Code (CLI or VS Code extension) / Node / pnpm / gh CLI / Claude Code skills / env vars, auto-installs what is automatable via Bash (GSD CLI, pnpm via Corepack, secret generation), and surfaces explicit paste-ready commands for the rest (slash commands for plugins, Neon signup URL, env keys, Claude Code install command if missing). No Vercel CLI required — deploys happen via GitHub push. Beginner-friendly — assumes zero prior knowledge, explains each step, stops at every human gate with clear instructions.
+description: Use when the user wants to bootstrap their dev environment for this Next.js starter from zero. Triggers — "/setup-kit", "je viens d'installer Claude Code", "je débute", "qu'est-ce que je dois installer", "setup my environment", "I just cloned the repo, what now?", "help me start", "I'm a beginner". The kit is cloud-only — there is no Docker, no local Postgres, no MinIO, no Mailpit. Every user creates a free Neon Postgres project, pastes the connection string into .env.local, and runs `pnpm dev`. The skill audits Claude Code (CLI or VS Code extension) / Node / pnpm / gh CLI / 3 Claude Code skills (superpowers, ui-ux-pro-max, context-mode) / env vars, auto-installs what is automatable via Bash (pnpm via Corepack, secret generation), and surfaces explicit paste-ready commands for the rest (slash commands for plugins, Neon signup URL, env keys, Claude Code install command if missing). Banani is OPTIONAL (skill asks oui/non/plus tard in Phase 5). GSD is NOT in prereqs — surfaced as level-up after the first feature, not by default. No Vercel CLI required — deploys happen via GitHub push. Beginner-friendly — assumes zero prior knowledge, explains each step, stops at every human gate with clear instructions. The pitch is **vibe coding**: clone, plug Neon, talk to Claude, ship.
 ---
 
 # Skill — setup-kit
@@ -51,11 +51,12 @@ Run these probes via Bash **in parallel** and build a table.
 | Banani MCP configured | `grep -q '@banani/mcp-server' .mcp.json 2>/dev/null && echo PLACEHOLDER \|\| echo CONFIGURED` | CONFIGURED (placeholder still present → user must paste real Banani MCP connection in Phase 5) |
 | `DATABASE_URL` set | `grep -q '^DATABASE_URL=postgresql://' frontend/.env.local 2>/dev/null && echo SET \|\| echo UNSET` | SET (must point at Neon, see Phase 4) |
 
-For Claude Code skills, check the system-reminder context loaded at session start — these 4 skill names must appear in the active skills list:
-- `gsd-*` family (any one — e.g. `gsd-execute-phase`)
+For Claude Code skills, check the system-reminder context loaded at session start — these 3 skill names must appear in the active skills list:
 - `superpowers:*` (any — e.g. `superpowers:using-superpowers`)
 - `ui-ux-pro-max`
 - `context-mode:*` (any — e.g. `context-mode:context-mode`)
+
+GSD (`get-shit-done-cc`) is **not** in the prereqs — it's an optional level-up tool surfaced in Phase 7 when the user finishes their first feature.
 
 Print the result as a checklist:
 
@@ -69,18 +70,18 @@ SYSTÈME
   ✅ .mcp.json présent
 
 CLAUDE CODE SKILLS
-  ❌ GSD             ❌ superpowers
-  ❌ ui-ux-pro-max   ❌ context-mode
+  ❌ superpowers     ❌ ui-ux-pro-max
+  ❌ context-mode    ℹ️  GSD (optionnel — level up)
 
 REPO
   ❌ frontend/.env.local manquant
   ❌ frontend/node_modules manquant
   ❌ DATABASE_URL pas défini (Neon requis)
-  ❌ Banani MCP non configuré (placeholder dans .mcp.json)
+  ℹ️  Banani MCP (optionnel — Phase 5)
 
 COMPTES (action humaine requise)
-  🙋 Neon Postgres   🙋 Banani
-  🙋 GitHub
+  🙋 Neon Postgres   🙋 GitHub
+  ℹ️  Banani (optionnel)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -99,21 +100,9 @@ For each MISSING item, take the action below. **NEVER skip a missing one silentl
 
 After each install, **re-run the matching probe** to confirm. If install fails, do not proceed — explique l'erreur en français simple et propose **une seule** alternative.
 
-### Phase 2 — Skills Claude Code
+### Phase 2 — Skills Claude Code (3 skills, paste-required)
 
-Les 4 skills s'installent différemment :
-
-**GSD — automatable via Bash :**
-
-```
-npx get-shit-done-cc@latest
-```
-
-Lance-le. Confirme le succès via l'output de l'installer.
-
-**superpowers / ui-ux-pro-max / context-mode — paste-required.**
-
-Ces skills utilisent des commandes `/plugin` (built-ins du harness Claude Code). **L'IA ne peut PAS taper ses propres slash commands.** Affiche-les comme bloc à copier-coller :
+Les 3 skills utilisent des commandes `/plugin` (built-ins du harness Claude Code). **L'IA ne peut PAS taper ses propres slash commands.** Affiche-les comme bloc à copier-coller :
 
 ```
 Copie-colle ces 5 commandes une par une dans Claude Code (Entrée entre chaque) :
@@ -126,6 +115,8 @@ Copie-colle ces 5 commandes une par une dans Claude Code (Entrée entre chaque) 
 ```
 
 Une fois confirmé : « Redémarre Claude Code (les skills se chargent au démarrage de la session) puis relance `/setup-kit` pour vérifier. »
+
+> **GSD intentionnellement omis ici.** GSD est un workflow procédural (~30 slash commands, plans/phases/commits atomiques) qui sert vraiment quand le projet devient gros. Pour un premier MVP en vibe coding, c'est de la cérémonie. On le surface en Phase 7 quand le user a terminé sa première feature, pas avant.
 
 ### Phase 3 — Compte Neon (la SEULE dépendance obligatoire)
 
@@ -151,18 +142,18 @@ Séquentiel (chaque étape dépend de la précédente) :
 
 Stop si une étape échoue. Lis l'erreur, explique en français simple, propose un fix.
 
-### Phase 5 — Banani MCP (design import)
+### Phase 5 — Banani MCP (optionnel — design import)
 
-Si l'user veut utiliser le workflow PRD → Banani → `/import-banani` (le chemin canonique de [WORKFLOW.md](../../../WORKFLOW.md)) :
+**Demande explicitement à l'user :** *« Tu as un design Banani ? oui / non / plus tard »*
 
-- URL : https://banani.co — **inscription gratuite, aucune clé payante.**
-- Banani expose son MCP via une **clé de connexion** (chaîne fournie dans son UI une fois loggé — onglet « Connect to MCP » ou équivalent).
-- Demande à l'user : « Colle ici ta clé de connexion MCP Banani (ou la commande/URL que Banani te donne pour se connecter en MCP). »
-- Une fois collée, l'IA met à jour `.mcp.json` à la racine du repo avec la config exacte fournie par l'user (commande + args, ou URL HTTP/SSE — selon ce que Banani lui donne). Ne pas inventer de format : utiliser tel quel ce que l'user colle.
-- Si l'user colle juste une URL : intégrer comme `{ "banani": { "url": "<url>" } }`. Si l'user colle une commande complète : reproduire `command` + `args`. En cas de doute, demande confirmation avant d'écrire.
-- Puis : « Redémarre Claude Code pour que le MCP soit chargé, puis lance `/import-banani` quand tes designs sont prêts. »
-
-Si l'user n'utilise pas Banani, dis-lui : « Saute Banani, tu pourras toujours lancer `/gsd-discuss-phase 1` avec ton PRD à la place. »
+- **non / plus tard** → Skip immédiatement. Dis-lui : *« Pas de souci. Tu pourras décrire ce que tu veux à Claude en français à la prochaine étape, et il construira l'UI à partir de ta description. Ouvre Banani plus tard si tu veux un design plus polish. »* Passe à Phase 6.
+- **oui** → continue ci-dessous :
+  - URL : https://banani.co — **inscription gratuite, aucune clé payante.**
+  - Banani expose son MCP via une **clé de connexion** (chaîne fournie dans son UI une fois loggé — onglet « Connect to MCP » ou équivalent).
+  - Demande : *« Colle ici ta clé de connexion MCP Banani (ou la commande/URL que Banani te donne pour se connecter en MCP). »*
+  - Une fois collée, l'IA met à jour `.mcp.json` à la racine du repo avec la config exacte fournie par l'user (commande + args, ou URL HTTP/SSE — selon ce que Banani lui donne). Ne pas inventer de format : utiliser tel quel ce que l'user colle.
+  - Si l'user colle juste une URL : intégrer comme `{ "banani": { "url": "<url>" } }`. Si l'user colle une commande complète : reproduire `command` + `args`. En cas de doute, demande confirmation avant d'écrire.
+  - Puis : *« Redémarre Claude Code pour que le MCP soit chargé. Au prochain chat, sélectionne tes écrans dans Banani et dis "reproduis ces écrans-là" — le skill `banani-design-implementation` prendra le relais (pixel-perfect 1:1). »*
 
 ### Phase 6 — Comptes optionnels (skip-friendly)
 
@@ -197,12 +188,15 @@ Puis :
 pnpm smoke:auth
 ```
 
-Si tout vert : 🎉 imprime un récap félicitations + les 4 prochaines étapes du [WORKFLOW.md](../../../WORKFLOW.md) :
+Si tout vert : 🎉 imprime un récap félicitations + le hand-off vibe coding :
 
-1. Écris ton PRD dans `.planning/PRD.md`
-2. Designe sur Banani (sélectionne tes écrans)
-3. Tape `/import-banani`
-4. Tape `/gsd-execute-phase 1`
+> *« Tout est prêt. Maintenant, dis-moi simplement ce que tu veux construire — en français, en langage naturel. Exemple : "je veux une page d'accueil avec un bouton créer un compte, un dashboard utilisateur, et une page de paiement." Les 40 routes API sont déjà câblées. Je m'occupe du code. »*
+>
+> *Si tu as connecté Banani en Phase 5 : sélectionne tes écrans et dis "reproduis ces écrans-là" — le skill `banani-design-implementation` prendra le relais.*
+>
+> *Pour déployer plus tard sur Vercel : dis-moi "déploie sur Vercel" quand tu es prêt. Voir [WORKFLOW.md](../../../WORKFLOW.md).*
+
+**Level up (pas obligatoire).** Quand le projet devient gros (multi-sessions, plusieurs features, dette technique), GSD (`npx get-shit-done-cc@latest`) ajoute un workflow par phases avec commits atomiques. Surface-le seulement si l'user demande à structurer son travail — pas par défaut.
 
 Si quelque chose rouge : stop, colle l'output qui échoue, explique en français simple, propose un fix. **Ne dis jamais « tout est prêt »** tant que les 3 commandes ne sont pas vertes.
 

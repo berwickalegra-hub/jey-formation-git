@@ -1,13 +1,5 @@
 {
-  "$comment_1": "Project-level MCP servers. Claude Code reads this file on session start. To activate Banani MCP: paste the MCP connection block Banani gives you in its UI (no paid API key needed — just the connection string/launcher Banani exposes for free). Replace the placeholder block below, then restart Claude Code.",
-  "$comment_2": "PLACEHOLDER — the block below is a stub. Replace it with the exact MCP server config Banani provides (could be `{ command, args }` for a stdio launcher, or `{ url }` for an HTTP/SSE endpoint, or `{ command, args, env }` if a token is needed). Just paste what Banani gives you. The `/setup-kit` skill walks through this in Phase 5.",
-  "mcpServers": {
-    "banani": {
-      "command": "npx",
-      "args": ["-y", "@banani/mcp-server"],
-      "env": {
-        "BANANI_API_KEY": "${BANANI_API_KEY}"
-      }
-    }
-  }
+  "$comment_1": "Project-level MCP servers. Claude Code reads this file on session start. Empty by default — the starter ships no MCP servers.",
+  "$comment_2": "To add an MCP server (e.g. Banani for design import, Supabase, Linear, etc.): paste the exact server block your provider gives you inside `mcpServers`. The `/setup-kit` skill walks through this for Banani in Phase 5 (optional). Format examples — stdio: `\"name\": { \"command\": \"npx\", \"args\": [\"-y\", \"<pkg>\"] }` — HTTP/SSE: `\"name\": { \"url\": \"https://...\" }`. Restart Claude Code after editing.",
+  "mcpServers": {}
 }

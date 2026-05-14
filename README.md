@@ -2,9 +2,9 @@
 
 Starter full-stack headless pour la stack Next.js 16 + Prisma 5 + Neon + Upstash + R2 + Resend + Bictorys + Sentry. Une seule app Next.js déployable — aucun backend séparé. Les providers tiers (R2, Resend, Bictorys, Google OAuth, Sentry, Upstash) sont gated par variables d'environnement et inertes sans leurs clés ; l'app boote et `/api/auth` fonctionne avec juste `DATABASE_URL`, `JWT_SECRET`, `ENCRYPTION_KEY` et `CRON_SECRET`. Le starter ne ship que de la logique — aucun composant UI, aucune page — chaque fork designe son propre UX.
 
-Voir [.planning/PROJECT.md](.planning/PROJECT.md) pour la vision du projet et [STATUS.md](STATUS.md) pour l'historique de migration.
+Voir [STATUS.md](STATUS.md) pour l'historique de migration.
 
-## Workflow débutant (clone → ship)
+## Workflow débutant (vibe coding)
 
 **Une seule commande pour démarrer.** Ouvre ce projet dans Claude Code et tape :
 
@@ -12,16 +12,13 @@ Voir [.planning/PROJECT.md](.planning/PROJECT.md) pour la vision du projet et [S
 /setup-kit
 ```
 
-`/setup-kit` est une skill bundlée dans ce repo. Elle fait **tout le parcours d'installation guidé** :
+`/setup-kit` est une skill bundlée dans ce repo. Elle audite ton environnement (Node, pnpm, gh CLI), te fait créer un Neon Postgres gratuit (la **seule** dépendance obligatoire), génère les secrets et lance `pnpm install` + `pnpm dev`.
 
-1. **Audit** — détecte ce qui est déjà installé (Node, pnpm, gh CLI, vercel CLI, skills Claude Code, fichier `.env.local`, etc.)
-2. **Auto-install** — installe ce qui peut l'être (GSD via `npx`, pnpm via Corepack, vercel CLI via npm, génération des secrets)
-3. **Comptes** — te demande de créer ton compte Neon (Postgres gratuit, 30 sec) et copier `DATABASE_URL` + `DIRECT_URL`, puis Banani si tu utilises le design import
-4. **Skills** — affiche les commandes `/plugin install` à coller dans Claude Code pour superpowers / ui-ux-pro-max / context-mode
-5. **Setup repo** — `pnpm install`, applique le schéma Prisma, et lance le smoke test
-6. **Hand-off** — quand tout est vert, te route vers [WORKFLOW.md](WORKFLOW.md) pour les 4 étapes suivantes (rédige ton PRD → sélectionne tes écrans dans Banani → `/import-banani` réconcilie design ↔ backend → `/gsd-execute-phase` ship le code)
+Une fois `/setup-kit` terminé : **décris à Claude ce que tu veux construire**. Les 40 routes API (auth, paiements, admin, webhooks, cron, uploads) sont déjà câblées — tu n'as qu'à parler de ton produit, pas du plumbing. Si tu as un design Banani, dis « reproduis ces écrans-là » ; sinon, Claude propose une UI à partir de ta description.
 
-Pré-requis avant de taper `/setup-kit` : avoir **Claude Code** installé et **Get Shit Done (GSD)** installable via `npx` (l'audit le confirme).
+Pour le détail (déploiement Vercel, surfaces optionnelles) : voir [WORKFLOW.md](WORKFLOW.md).
+
+Pré-requis avant de taper `/setup-kit` : avoir **Claude Code** installé (CLI ou extension VS Code).
 
 ## Quickstart
 
@@ -195,10 +192,9 @@ Les forks ouverts dans Claude Code récupèrent automatiquement plusieurs skills
 
 | Skill | Phrases déclencheuses | Ce qu'elle fait |
 |---|---|---|
-| [`setup-kit`](.claude/skills/setup-kit/SKILL.md) | « /setup-kit », « je débute », « qu'est-ce que je dois installer » | Audit complet de l'environnement (Node, pnpm, gh CLI, vercel CLI, skills Claude Code, comptes Neon/Banani), auto-install ce qui peut l'être, guide pas-à-pas pour le reste. Mode débutant non-négociable. |
-| [`import-banani`](.claude/skills/import-banani/SKILL.md) | « /import-banani », « importe mes écrans Banani » | Lit tes écrans Banani sélectionnés via MCP, matche contre les 40 routes existantes, produit `.planning/DESIGN-COVERAGE.md` + `.planning/ROADMAP.md` prêt pour `/gsd-execute-phase`. |
-| [`banani-design-implementation`](.claude/skills/banani-design-implementation/SKILL.md) | « build this from Banani », « use the Banani MCP », « reproduce this screen » | Reproduction pixel-perfect 1:1 des écrans Banani sélectionnés via le MCP Banani. Lit `CLAUDE.md` pour la stack du projet (aucune assumption Tailwind/React), planifie le travail, tracke le progrès entre sessions. |
-| [`ui-ux-pro-max`](.claude/skills/ui-ux-pro-max/SKILL.md) | « design », « build », « improve », « review UI » + n'importe lequel de : button/modal/navbar/dashboard/landing/SaaS/glassmorphism/etc. | Design intelligence searchable : 67 styles, 96 palettes, 57 paires de fonts, 99 guidelines UX, 25 types de charts sur 13 stacks (Next.js, React, Vue, SwiftUI, Flutter…). Inclut l'intégration MCP shadcn/ui. |
+| [`setup-kit`](.claude/skills/setup-kit/SKILL.md) | « /setup-kit », « je débute », « qu'est-ce que je dois installer » | Audit Node/pnpm/gh CLI/Claude Code/env vars, auto-install ce qui peut l'être, paste-ready commands pour le reste, Neon en obligatoire. Mode débutant non-négociable. |
+| [`banani-design-implementation`](.claude/skills/banani-design-implementation/SKILL.md) | « build this from Banani », « use the Banani MCP », « reproduce this screen » | Reproduction pixel-perfect 1:1 des écrans Banani sélectionnés via MCP (optionnel — Banani n'est pas requis). Lit `CLAUDE.md` pour la stack, planifie, tracke entre sessions. |
+| [`ui-ux-pro-max`](.claude/skills/ui-ux-pro-max/SKILL.md) | « design », « build », « improve », « review UI » + button/modal/navbar/dashboard/landing/SaaS/glassmorphism/etc. | Design intelligence searchable : 67 styles, 96 palettes, 57 paires de fonts, 99 guidelines UX, 25 types de charts sur 13 stacks (Next.js, React, Vue, SwiftUI, Flutter…). Intégration MCP shadcn/ui. |
 
 Les débutants peuvent donc passer de `gh repo create --template` à un UI designé en un seul chat : décris l'écran → une skill prend le relais → les routes API sont déjà câblées.
 
@@ -217,14 +213,14 @@ izikit/
 │           ├── api.ts           browser fetch wrapper (PROTÉGÉ)
 │           └── server/          libs server-only (auth, crypto, payments, oauth, webhook, outbox, cron, ...)
 ├── examples/frontend-pages/     UIs de référence à copier et restyler (admin/, auth-error)
-├── .planning/                   roadmap, phases, décisions (workflow GSD)
+├── .planning/                   features.json (manifeste pruning) + audits ponctuels
 ├── pnpm-workspace.yaml          workspace = frontend/ seulement
 └── package.json                 scripts orchestrateurs (proxy `pnpm --filter frontend ...`)
 ```
 
 ## Ce qui n'est PAS livré (hors scope)
 
-Mirroring [`.planning/PROJECT.md`](.planning/PROJECT.md) « Out of Scope » — copié ici pour rendre ce README self-contained.
+Décisions de scope du starter — copié ici pour rendre ce README self-contained.
 
 | Feature | Raison |
 |---|---|

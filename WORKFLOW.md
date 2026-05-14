@@ -1,151 +1,62 @@
-# Workflow — du PRD au SaaS livré en 4 étapes
+# Workflow — du clone au SaaS livré
 
-> **🤖 Si tu es une IA qui lit ce fichier sur demande d'un débutant** : lis ce document **en entier** + lis ensuite [CLAUDE.md](CLAUDE.md) pour comprendre l'architecture, puis demande au débutant **où il en est dans les étapes 0 → 5 ci-dessous** (a-t-il fait `/setup-kit` ? a-t-il déjà un PRD ? a-t-il designé sur Banani ? etc.) et guide-le étape par étape. Ne saute aucune étape — chaque étape valide la précédente.
+> **🤖 IA qui lit ceci pour un débutant** : lis ce fichier + [CLAUDE.md](CLAUDE.md), puis demande au débutant où il en est (a-t-il fait `/setup-kit` ? a-t-il une idée écrite ? a-t-il un design Banani ?) et guide-le. Ne fais rien sans validation explicite.
 
-> **👤 Si tu es un débutant** : ouvre ce projet dans Claude Code et tape **`/setup-kit`**. La skill bundlée avec ce repo gère toute l'installation (audit + comptes + secrets) et te route vers les étapes 1-4 ci-dessous à la fin.
+> **👤 Débutant** : ouvre le repo dans Claude Code, tape **`/setup-kit`**, puis décris ce que tu veux. C'est tout.
 
-Ce document décrit le **parcours canonique d'un débutant** qui utilise `izi kit` comme starter. Le but : passer d'une idée écrite à un produit fonctionnel sans toucher au plumbing (auth, paiements, admin, webhooks, cron).
-
-## Étape 0 — Installation (`/setup-kit`)
-
-Ouvre le repo dans Claude Code et tape :
-
-```
-/setup-kit
-```
-
-La skill [.claude/skills/setup-kit/SKILL.md](.claude/skills/setup-kit/SKILL.md) prend le relais et fait :
-
-1. **Audit** — Node, pnpm, gh CLI, vercel CLI, skills Claude Code (GSD, superpowers, ui-ux-pro-max, context-mode), fichier `.env.local`, MCP config
-2. **Auto-install** — ce qui est automatisable (GSD via `npx`, pnpm via Corepack, Vercel CLI, secrets JWT/ENCRYPTION/CRON)
-3. **Comptes obligatoires** — te demande de créer Neon (Postgres gratuit, **seule dépendance obligatoire** — le kit est cloud-only, pas de Docker) et Banani (design import)
-4. **Skills à coller** — affiche les `/plugin install` à copier-coller pour superpowers / ui-ux-pro-max / context-mode (ne sont pas auto-installables par une IA car ce sont des slash commands du harness Claude Code)
-5. **Setup repo** — `pnpm install` + applique le schéma Prisma + smoke test
-6. **Hand-off** — quand tout est vert, te dit « passe à l'Étape 1 ci-dessous »
-
-Une fois `/setup-kit` terminé, tu as un repo qui boote en local et tu peux passer aux étapes 1-4.
-
-```
-[0. /setup-kit]
-       │
-       ▼
-┌──────────┐    ┌──────────┐    ┌──────────────┐    ┌──────────────┐
-│ 1. PRD   │ ─▶ │ 2. Banani│ ─▶ │ 3. /import-  │ ─▶ │ 4. /gsd-     │
-│ (texte)  │    │ (design) │    │    banani    │    │    execute-  │
-│          │    │          │    │              │    │    phase N   │
-└──────────┘    └──────────┘    └──────────────┘    └──────────────┘
-   tu écris     tu sélectionnes   skill starter      commande GSD
-                tes écrans        (lit MCP Banani,   (orchestre les
-                                  réconcilie         sous-agents qui
-                                  backend ↔ design)  shippent le code)
-```
+L'objectif : **vibe coding**. Tu clones, tu plug une DB Neon, tu parles à Claude, tu shippes. Pas de méthodo à apprendre, pas de slash commands à mémoriser.
 
 ---
 
-## Étape 1 — Rédiger le PRD
+## Étape 1 — `/setup-kit`
 
-Sortie : un document Markdown qui décrit ton produit (qui, quoi, pourquoi, fonctionnalités principales, tunnel d'usage). Outil libre — un GPT, Claude, Notion, ou ton outil de création de PRD existant.
+Une seule commande. La skill [.claude/skills/setup-kit/SKILL.md](.claude/skills/setup-kit/SKILL.md) audite ton environnement (Node, pnpm, gh CLI), te fait créer un Neon Postgres gratuit (la **seule** dépendance obligatoire — le kit est cloud-only, pas de Docker), génère les secrets et lance `pnpm install` + `pnpm dev`.
 
-**Sortie attendue** : `.planning/PRD.md` (ou un chemin de ton choix). Pas de format imposé — un humain doit pouvoir le lire en 5 min. Tu poses ce fichier dans le repo, c'est tout.
-
----
-
-## Étape 2 — Designer sur Banani
-
-Donne ton PRD à Banani avec un prompt design. Banani va générer toutes les pages importantes : login, signup, dashboard, et toutes les features spécifiques au produit.
-
-**Sortie attendue** : un projet Banani contenant tous les écrans clés. Sélectionne dans l'éditeur Banani les écrans que tu veux importer (la MCP lit ta sélection courante — il n'y a pas de `project_id` à passer).
+Sortie : `pnpm dev` boote vert, `pnpm smoke:auth` passe.
 
 ---
 
-## Étape 3 — Réconcilier design ↔ starter
+## Étape 2 — Décris ce que tu veux à Claude
 
-Ouvre le starter dans Claude Code, puis :
+Dans Claude Code, dis simplement ce que tu construis :
 
-```bash
-# Pré-requis : .mcp.json déclare le serveur Banani (déjà templated dans le starter)
-# Ajoute ta BANANI_API_KEY dans .env.local
-```
+> *« Je veux un SaaS de gestion de cagnottes pour le Sénégal. Page d'accueil avec un bouton "Créer une cagnotte", dashboard utilisateur, page publique partageable. Les contributions passent par Wave/Orange Money. »*
 
-Sélectionne tes écrans dans l'éditeur Banani, puis lance :
+Claude code à partir de ta description. Les 40 routes API du starter (auth, paiements, admin, webhooks, cron, uploads) sont déjà câblées — tu n'as qu'à parler de **ton produit**, pas du plumbing.
 
-```
-/import-banani
-```
+**Si tu as un design Banani** : sélectionne tes écrans dans Banani, dis *« reproduis ces écrans-là »* et active le skill [`banani-design-implementation`](.claude/skills/banani-design-implementation/SKILL.md) (déjà bundlé) — il lit ta sélection MCP et reproduit pixel-perfect.
 
-L'IA va :
-1. Récupérer les écrans **actuellement sélectionnés** dans Banani via la MCP `mcp__banani__banani_get_selected_designs` (zero-arg). Si tu veux des écrans précis, passe `screenIds`.
-2. Extraire les CTAs / formulaires / data-fetches par écran
-3. Matcher contre les 40 routes API existantes du starter
-4. Produire `.planning/DESIGN-COVERAGE.md` qui liste :
-   - **Routes existantes à réutiliser** (auth, paiements, admin si applicables)
-   - **Routes nouvelles à créer** (par exemple `POST /api/posts` pour un blog)
-   - **Surfaces livrées mais inutilisées** (ex: pas de paiements pour un blog → désactiver `BICTORYS_*` dans `.env`)
-5. Générer automatiquement `.planning/ROADMAP.md` avec 1-N phases prêtes à exécuter
-
-Tu relis `DESIGN-COVERAGE.md` (5 min) et tu valides.
+**Si tu n'as pas de design** : Claude propose une UI Tailwind/shadcn-style à partir de ta description. Tu itères jusqu'à ce que ça te plaise.
 
 ---
 
-## Étape 4 — Implémenter
+## Étape 3 — Déploie sur Vercel
 
-```
-/gsd-execute-phase 1
-```
+Quand `pnpm dev` te plaît :
 
-L'IA :
-- Reproduit pixel-perfect chaque écran Banani via le skill `banani-design-implementation`
-- Câble chaque page aux routes API du starter (`requireAuth` + `verifyCsrf` + `withRequestContext` boilerplate déjà fourni)
-- Crée les nouvelles routes/modèles Prisma identifiés à l'étape 3
-- Lance la suite Vitest (559+ tests) après chaque commit
-- Te dit `/gsd-execute-phase 2` quand la phase 1 est verte
+> *« Déploie mon app sur Vercel. »*
 
-Quand toutes les phases sont vertes : `pnpm dev` + `pnpm smoke:auth` (étape 5 ci-dessous pour le déploiement).
+Claude pousse sur GitHub, importe le repo dans Vercel via leur UI, te demande de coller chaque env var (jamais via terminal pour les secrets), vérifie que `DATABASE_URL` est sur `-pooler` Neon, vérifie les 5 crons dans `vercel.json`, et te donne l'URL de prod.
+
+**Variables non-négociables en prod** : `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `ENCRYPTION_KEY`, `CRON_SECRET`, `APP_URL`. Tout le reste (Resend, R2, Bictorys, Google OAuth, Sentry, Upstash) est optionnel et inerte quand absent.
 
 ---
 
-## Étape 5 — Déployer sur Vercel
+## Surfaces optionnelles
 
-Quand toutes tes phases sont vertes en local, dis à l'IA :
-
-> *"Déploie mon app sur Vercel. Configure le projet, copie mes env vars depuis `.env.local`, et donne-moi l'URL de production."*
-
-L'IA va exécuter (en te demandant confirmation aux étapes risquées) :
-
-1. **Push GitHub** : `git push origin main` — ton repo doit déjà être sur GitHub (sinon `gh repo create`)
-2. **Lien Vercel** : `vercel link` (interactif au premier run — si pas de Vercel CLI : `npm i -g vercel` et `vercel login`)
-3. **Copier env vars** : pour chaque ligne non-vide de ton `.env.local`, l'IA lance `vercel env add <NAME> production` (l'IA ne déplace JAMAIS de secrets vers le terminal — elle te demande de coller chaque valeur quand le prompt Vercel s'ouvre)
-4. **Postgres pooler** : vérifie que `DATABASE_URL` pointe sur le `-pooler` Neon URL (et `DIRECT_URL` sur la non-pooled — requis pour `prisma migrate deploy`)
-5. **Crons** : `vercel.json` est lu automatiquement au déploiement → tes 5 crons sont enregistrés sans config supplémentaire
-6. **Déployer** : `vercel --prod` → URL `https://<ton-projet>.vercel.app`
-7. **Smoke prod** : `SMOKE_BASE_URL=https://<ton-projet>.vercel.app pnpm smoke:auth` valide signup → verify → me → logout en prod
-
-Si l'IA n'a pas le Vercel CLI installé, elle te dit la commande exacte à lancer.
-
-**Variables qui doivent absolument être dans Vercel** : `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`, `ENCRYPTION_KEY`, `CRON_SECRET`, `APP_URL` (pointer sur ton URL Vercel), `COOKIE_PREFIX`, `NEXT_PUBLIC_COOKIE_PREFIX`, plus tous les providers que tu as activés (Resend, R2, Bictorys, Google OAuth, Sentry, Upstash).
-
----
-
-## Surfaces optionnelles du starter
-
-Ce que le starter livre, et comment le désactiver feature-par-feature (sans toucher au code) :
-
-| Surface | Désactiver = | Vérification |
+| Surface | Activer = | Désactiver = |
 |---|---|---|
-| Paiements (Bictorys) | Ne pas remplir `BICTORYS_*` dans `.env.local` | `/api/orders` 404 |
-| OAuth Google | Ne pas remplir `GOOGLE_*` | `/api/auth/oauth/google/*` 404 |
-| Uploads R2 | Ne pas remplir `R2_*` | `/api/upload` 503 STORAGE_NOT_CONFIGURED |
-| Email Resend | Ne pas remplir `RESEND_API_KEY` | `EmailJob` rows pile up, drain skip |
-| Sentry | Ne pas remplir `SENTRY_DSN` | SDK no-op silencieux |
-| Multi-tenancy | Ne pas appeler `requireOrgRole(...)` | Modèles `Organization*` zero-cost |
-| Admin back-office | Ne pas créer de SUPERADMIN | Routes refusent toutes les requêtes |
+| Paiements (Bictorys) | Remplir `BICTORYS_*` | `/api/orders` 404 |
+| OAuth Google | Remplir `GOOGLE_*` | `/api/auth/oauth/google/*` 404 |
+| Uploads R2 | Remplir `R2_*` | `/api/upload` 503 |
+| Email Resend | Remplir `RESEND_API_KEY` | jobs s'accumulent dans la queue |
+| Sentry | Remplir `SENTRY_DSN` | no-op |
+| Upstash Redis | Remplir `UPSTASH_*` | fallback in-memory |
 
-Le manifeste machine-lisible vit dans [.planning/features.json](.planning/features.json) — utilisé par le futur `gsd-prune-feature` pour supprimer atomiquement le code mort si tu veux un repo plus mince.
+Manifeste détaillé dans [.planning/features.json](.planning/features.json). Protocole de suppression atomique dans [PRUNING.md](PRUNING.md).
 
 ---
 
-## Limitations connues
+## Pour aller plus loin (level up)
 
-- `/import-banani` est **un skill du starter** ([.claude/skills/import-banani/SKILL.md](.claude/skills/import-banani/SKILL.md)) — pas une commande GSD-native. Sa logique est un fichier markdown d'instructions que Claude Code charge et suit ; la qualité d'extraction CTA/form/data-fetch dépend du modèle qui l'exécute et s'affinera au fur et à mesure des forks réels.
-- Banani MCP requiert une `BANANI_API_KEY` non shippée + un `.mcp.json` correctement câblé sur le bon launcher Banani (le `command`/`args` template est à remplacer — voir [.mcp.json](.mcp.json)).
-- Si tu n'utilises pas Banani, saute les étapes 2-3 et lance `/gsd-discuss-phase 1` directement avec ton PRD.
+Quand ton projet devient sérieux (multi-sessions, dette technique, plusieurs contributeurs), regarde **GSD** — un workflow de gestion par phases avec commits atomiques : `npx get-shit-done-cc@latest`. Ce n'est **pas** requis pour shipper ton premier MVP. Le vibe coding suffit pour 90% des cas.

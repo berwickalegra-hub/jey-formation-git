@@ -50,7 +50,7 @@ describe('.env.example shape (OPS-01, OPS-04)', () => {
 });
 
 // ───────────────────────────────────────────────────────────────────────
-// Phase 4 — UPLOAD + R2 + WITHDRAWAL safety knobs.
+// Phase 4 — UPLOAD + Cloudinary + WITHDRAWAL safety knobs.
 //
 // These assertions are tripwires: refactors that "tidy up" .env.example by
 // stripping the FINANCIAL-SAFETY warning block or the verbatim defaults

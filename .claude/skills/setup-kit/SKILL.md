@@ -48,7 +48,7 @@ Run these probes via Bash **in parallel** and build a table.
 | Repo `frontend/.env.local` | `test -f frontend/.env.local && echo EXISTS \|\| echo MISSING` | EXISTS |
 | Repo `node_modules` | `test -d frontend/node_modules && echo EXISTS \|\| echo MISSING` | EXISTS |
 | MCP config | `test -f .mcp.json && echo EXISTS \|\| echo MISSING` | EXISTS |
-| Banani MCP configured | `grep -q '@banani/mcp-server' .mcp.json 2>/dev/null && echo PLACEHOLDER \|\| echo CONFIGURED` | CONFIGURED (placeholder still present → user must paste real Banani MCP connection in Phase 5) |
+| Banani MCP configured (optional) | `node -e 'try{const j=require("./.mcp.json");console.log(Object.keys(j.mcpServers\|\|{}).length?"CONFIGURED":"EMPTY")}catch(e){console.log("MISSING")}'` | EMPTY by default (Banani optional — user opts in in Phase 5). CONFIGURED only if Phase 5 already ran. |
 | `DATABASE_URL` set | `grep -q '^DATABASE_URL=postgresql://' frontend/.env.local 2>/dev/null && echo SET \|\| echo UNSET` | SET (must point at Neon, see Phase 4) |
 
 For Claude Code skills, check the system-reminder context loaded at session start — these 3 skill names must appear in the active skills list:

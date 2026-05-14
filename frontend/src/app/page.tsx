@@ -80,10 +80,12 @@ export default function Home() {
         </h2>
         <pre className="mt-3 overflow-x-auto rounded bg-white p-3 text-sm">/setup-kit</pre>
         <p className="mt-3 text-sm text-emerald-900">
-          The <code>/setup-kit</code> skill bundled with this repo audits your environment, installs
-          what it can (GSD, pnpm via Corepack, vercel CLI, secrets), walks you through creating a
-          free Neon Postgres + Banani account, and hands off to <code>WORKFLOW.md</code> for the PRD
-          → Banani → <code>/import-banani</code> → <code>/gsd-execute-phase</code> flow.
+          The <code>/setup-kit</code> skill audits your environment, installs what it can (pnpm via
+          Corepack, secrets), and walks you through creating a free Neon Postgres — the only
+          mandatory dependency. Then just <strong>describe what you want to build to Claude</strong>{' '}
+          (in French or English). The 40 routes (auth, payments, admin, webhooks, cron, uploads) are
+          already wired — you only talk about your product, not the plumbing. See{' '}
+          <code>WORKFLOW.md</code> for the full vibe-coding flow.
         </p>
       </section>
 

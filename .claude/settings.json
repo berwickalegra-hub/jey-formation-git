@@ -7,18 +7,7 @@
       "Bash(chmod +x .husky/pre-commit)",
       "Bash(node -e \"const p=require\\('./frontend/package.json'\\); console.log\\('prisma:', p.dependencies?.prisma||p.devDependencies?.prisma\\); console.log\\('@prisma/client:', p.dependencies?.['@prisma/client']\\)\")",
       "Bash(pnpm audit *)",
-      "Skill(gsd-plan-phase)",
-      "Skill(gsd-plan-phase:*)",
-      "Bash(pnpm --filter frontend exec vitest run)",
-      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs phase complete 02)",
-      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs commit 'docs\\(phase-02\\): complete phase execution' --files .planning/ROADMAP.md .planning/STATE.md .planning/phases/02-oauth-notifications-withdrawal-pin/02-VERIFICATION.md)",
-      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs config-get features.global_learnings --raw)",
-      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs commit 'docs\\(phase-02\\): evolve PROJECT.md after phase completion' --files .planning/PROJECT.md)",
-      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs init plan-phase 3)",
-      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs commit 'docs\\(03\\): drop organizations from phase 3 scope \\(deferred opt-in\\)' --files .planning/ROADMAP.md .planning/PROJECT.md)",
-      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs commit 'docs\\(03\\): capture phase context' --files .planning/phases/03-admin-organizations-orders/03-CONTEXT.md .planning/phases/03-admin-organizations-orders/03-DISCUSSION-LOG.md)",
-      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs state record-session --stopped-at 'Phase 3 context gathered' --resume-file .planning/phases/03-admin-organizations-orders/03-CONTEXT.md)",
-      "Bash(node __TRACKED_VAR__/.claude/get-shit-done/bin/gsd-tools.cjs commit 'docs\\(state\\): record phase 3 context session' --files .planning/STATE.md)"
+      "Bash(pnpm --filter frontend exec vitest run)"
     ]
   }
 }

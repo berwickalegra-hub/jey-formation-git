@@ -8,7 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **A v1-shipped, headless Next.js 16 monolith starter.** Single full-stack app (App Router API Route Handlers + Server Actions + Prisma 5 + Neon + Upstash + Cloudinary + Resend + Bictorys + Sentry). There is no separate Express backend anymore — server logic lives under `frontend/src/app/api/*` and `frontend/src/lib/server/*`. The app **ships only logic** — no UI components — so each fork designs its own UX.
 
-Origin: bootstrapped from `amadou-template` (the legacy monorepo predecessor) on 2026-05-07; the port to a single Next.js 16 app shipped through 7 phases (auth → OAuth/notifs → admin → uploads/withdrawals → webhooks/cron → docs/tests → final pass). 559/559 unit tests green.
+Origin: bootstrapped from `amadou-template` (the legacy monorepo predecessor) on 2026-05-07; the port to a single Next.js 16 app shipped through 7 phases (auth → OAuth/notifs → admin → uploads/withdrawals → webhooks/cron → docs/tests → final pass). 555/555 unit tests green (the storage swap dropped the now-obsolete `/api/files/[...key]` proxy tests).
 
 **For an AI agent picking up this repo:** the architecture sections below describe what's already been built. Anything not listed under "Files Claude must NOT modify" is fair game to extend, refactor, or replace per your fork's needs — that's the point of a starter. The protected list is the small set of files where the invariants are subtle (refresh-token races, HMAC integrity, advisory locks…); everything else is the fork's surface area.
 
@@ -164,7 +164,7 @@ If unsure whether a change touches a protected file, run `pnpm test` — the tri
 
 ## Pruning protocol
 
-When the user wants to remove an optional feature (or `/import-banani` flags one as PRUNABLE), follow the 9-step protocol in [PRUNING.md](PRUNING.md). Naive deletion based only on `owns` in [features.json](.planning/features.json) WILL break the build — PRUNING.md walks through `cross_dependencies` resolution, `surgical_edits` (do these BEFORE deletions), Prisma schema cleanup, vercel.json updates, tripwire patches, and the non-negotiable `pnpm format && lint && typecheck && test && build` gate before commit.
+When the user wants to remove an optional feature, follow the 9-step protocol in [PRUNING.md](PRUNING.md). Naive deletion based only on `owns` in [features.json](.planning/features.json) WILL break the build — PRUNING.md walks through `cross_dependencies` resolution, `surgical_edits` (do these BEFORE deletions), Prisma schema cleanup, vercel.json updates, tripwire patches, and the non-negotiable `pnpm format && lint && typecheck && test && build` gate before commit.
 
 ## Provider recommendations
 

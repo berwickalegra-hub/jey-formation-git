@@ -163,13 +163,13 @@ model VerificationCode {
 }
 
 // ───────────────────────────────────────────────────────────────────────
-// Phase 2 — file uploads (R2 / S3)
+// File uploads — Cloudinary (column names kept from the R2 era; no migration needed)
 // ───────────────────────────────────────────────────────────────────────
 model FileUpload {
   id        String   @id @default(cuid())
   userId    String? // nullable — uploads can be anonymous if route allows
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  key       String   @unique // R2 object key
+  key       String   @unique // Cloudinary public_id (column name historical — was R2 object key)
   filename  String
   mimeType  String
   sizeBytes Int

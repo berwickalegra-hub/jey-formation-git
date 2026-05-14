@@ -16,6 +16,13 @@
  * Do NOT delegate validation to Cloudinary alone — the route is the single
  * trust boundary for declared-vs-actual MIME parity.
  *
+ * ⚠️ Privacy invariant: Cloudinary `secure_url` is publicly accessible —
+ * anyone with the URL can fetch the file (no auth, no expiry). Safe for
+ * avatars / product images / public posts. For private files (KYC docs,
+ * invoices, IDs) this route must be wrapped with Cloudinary signed delivery
+ * URLs or an owner-gated proxy. The v1 starter ships neither — adding either
+ * is project-specific.
+ *
  * Key naming: `{userId}/{cuid}.{ext}` — random UUID prevents collisions and
  * blocks path-traversal via attacker-controlled filename (T-04-02-02). The
  * resulting string is passed to Cloudinary as `public_id` and stored in

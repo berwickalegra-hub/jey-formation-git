@@ -1,6 +1,6 @@
 # Workflow — du PRD au SaaS livré en 4 étapes
 
-> **🤖 Si tu es une IA qui lit ce fichier sur demande d'un débutant** : lis ce document **en entier** + lis ensuite [CLAUDE.md](CLAUDE.md) pour comprendre l'architecture, puis demande au débutant **où il en est dans les 5 étapes ci-dessous** (a-t-il déjà un PRD ? a-t-il designé sur Banani ? etc.) et guide-le étape par étape. Ne saute aucune étape — chaque étape valide la précédente.
+> **🤖 Si tu es une IA qui lit ce fichier sur demande d'un débutant** : lis ce document **en entier** + lis ensuite [CLAUDE.md](CLAUDE.md) pour comprendre l'architecture, puis demande au débutant **où il en est dans les étapes 0 → 5 ci-dessous** (a-t-il fait `/setup-kit` ? a-t-il déjà un PRD ? a-t-il designé sur Banani ? etc.) et guide-le étape par étape. Ne saute aucune étape — chaque étape valide la précédente.
 
 > **👤 Si tu es un débutant** : ouvre ce projet dans Claude Code et tape **`/setup-kit`**. La skill bundlée avec ce repo gère toute l'installation (audit + comptes + secrets) et te route vers les étapes 1-4 ci-dessous à la fin.
 

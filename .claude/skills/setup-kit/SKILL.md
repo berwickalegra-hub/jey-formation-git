@@ -48,8 +48,8 @@ Run these probes via Bash **in parallel** and build a table.
 | Repo `frontend/.env.local` | `test -f frontend/.env.local && echo EXISTS \|\| echo MISSING` | EXISTS |
 | Repo `node_modules` | `test -d frontend/node_modules && echo EXISTS \|\| echo MISSING` | EXISTS |
 | MCP config | `test -f .mcp.json && echo EXISTS \|\| echo MISSING` | EXISTS |
+| Banani MCP configured | `grep -q '@banani/mcp-server' .mcp.json 2>/dev/null && echo PLACEHOLDER \|\| echo CONFIGURED` | CONFIGURED (placeholder still present → user must paste real Banani MCP connection in Phase 5) |
 | `DATABASE_URL` set | `grep -q '^DATABASE_URL=postgresql://' frontend/.env.local 2>/dev/null && echo SET \|\| echo UNSET` | SET (must point at Neon, see Phase 4) |
-| `BANANI_API_KEY` set | `grep -q '^BANANI_API_KEY=.\+' frontend/.env.local 2>/dev/null && echo SET \|\| echo UNSET` | SET |
 
 For Claude Code skills, check the system-reminder context loaded at session start — these 4 skill names must appear in the active skills list:
 - `gsd-*` family (any one — e.g. `gsd-execute-phase`)
@@ -76,7 +76,7 @@ REPO
   ❌ frontend/.env.local manquant
   ❌ frontend/node_modules manquant
   ❌ DATABASE_URL pas défini (Neon requis)
-  ❌ BANANI_API_KEY pas défini
+  ❌ Banani MCP non configuré (placeholder dans .mcp.json)
 
 COMPTES (action humaine requise)
   🙋 Neon Postgres   🙋 Banani
@@ -151,14 +151,16 @@ Séquentiel (chaque étape dépend de la précédente) :
 
 Stop si une étape échoue. Lis l'erreur, explique en français simple, propose un fix.
 
-### Phase 5 — Compte Banani (design import)
+### Phase 5 — Banani MCP (design import)
 
 Si l'user veut utiliser le workflow PRD → Banani → `/import-banani` (le chemin canonique de [WORKFLOW.md](../../../WORKFLOW.md)) :
 
-- URL : https://banani.co
-- Inscription gratuite, récupère la clé API (Settings → API Keys)
-- L'IA fait l'`Edit` de `BANANI_API_KEY=...` dans `.env.local` quand le user colle la clé
-- Vérifie que `.mcp.json` à la racine du repo référence bien `${BANANI_API_KEY}` (template livré avec le starter)
+- URL : https://banani.co — **inscription gratuite, aucune clé payante.**
+- Banani expose son MCP via une **clé de connexion** (chaîne fournie dans son UI une fois loggé — onglet « Connect to MCP » ou équivalent).
+- Demande à l'user : « Colle ici ta clé de connexion MCP Banani (ou la commande/URL que Banani te donne pour se connecter en MCP). »
+- Une fois collée, l'IA met à jour `.mcp.json` à la racine du repo avec la config exacte fournie par l'user (commande + args, ou URL HTTP/SSE — selon ce que Banani lui donne). Ne pas inventer de format : utiliser tel quel ce que l'user colle.
+- Si l'user colle juste une URL : intégrer comme `{ "banani": { "url": "<url>" } }`. Si l'user colle une commande complète : reproduire `command` + `args`. En cas de doute, demande confirmation avant d'écrire.
+- Puis : « Redémarre Claude Code pour que le MCP soit chargé, puis lance `/import-banani` quand tes designs sont prêts. »
 
 Si l'user n'utilise pas Banani, dis-lui : « Saute Banani, tu pourras toujours lancer `/gsd-discuss-phase 1` avec ton PRD à la place. »
 

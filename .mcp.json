@@ -1,6 +1,6 @@
 {
-  "$comment_1": "Project-level MCP servers. Claude Code reads this file on session start. Per-machine secrets live in .env.local (gitignored). To activate Banani MCP: (1) put BANANI_API_KEY in .env.local, (2) update the `command`/`args` below to match the actual Banani MCP launcher Banani gives you (their docs / CLI), (3) restart your Claude Code session.",
-  "$comment_2": "WARNING — the package name `@banani/mcp-server` below is a PLACEHOLDER. Banani's real MCP package/binary may differ. Check Banani's docs and replace `command`/`args` with the canonical launcher before relying on this. The fork-author owns this swap (1-line edit).",
+  "$comment_1": "Project-level MCP servers. Claude Code reads this file on session start. To activate Banani MCP: paste the MCP connection block Banani gives you in its UI (no paid API key needed — just the connection string/launcher Banani exposes for free). Replace the placeholder block below, then restart Claude Code.",
+  "$comment_2": "PLACEHOLDER — the block below is a stub. Replace it with the exact MCP server config Banani provides (could be `{ command, args }` for a stdio launcher, or `{ url }` for an HTTP/SSE endpoint, or `{ command, args, env }` if a token is needed). Just paste what Banani gives you. The `/setup-kit` skill walks through this in Phase 5.",
   "mcpServers": {
     "banani": {
       "command": "npx",

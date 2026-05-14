@@ -1,6 +1,6 @@
 ---
 name: setup-kit
-description: Use when the user wants to bootstrap their dev environment for this Next.js starter from zero. Triggers — "/setup-kit", "je viens d'installer Claude Code", "je débute", "qu'est-ce que je dois installer", "setup my environment", "I just cloned the repo, what now?", "help me start", "I'm a beginner". The kit is cloud-only — there is no Docker, no local Postgres, no MinIO, no Mailpit. Every user creates a free Neon Postgres project, pastes the connection string into .env.local, and runs `pnpm dev`. The skill audits Node/pnpm/CLI tools/Claude Code skills/env vars, auto-installs what is automatable via Bash (GSD CLI, pnpm via Corepack, vercel CLI, secret generation), and surfaces explicit paste-ready commands for the rest (slash commands for plugins, Neon signup URL, env keys). Beginner-friendly — assumes zero prior knowledge, explains each step, stops at every human gate with clear instructions.
+description: Use when the user wants to bootstrap their dev environment for this Next.js starter from zero. Triggers — "/setup-kit", "je viens d'installer Claude Code", "je débute", "qu'est-ce que je dois installer", "setup my environment", "I just cloned the repo, what now?", "help me start", "I'm a beginner". The kit is cloud-only — there is no Docker, no local Postgres, no MinIO, no Mailpit. Every user creates a free Neon Postgres project, pastes the connection string into .env.local, and runs `pnpm dev`. The skill audits Claude Code (CLI or VS Code extension) / Node / pnpm / gh CLI / Claude Code skills / env vars, auto-installs what is automatable via Bash (GSD CLI, pnpm via Corepack, secret generation), and surfaces explicit paste-ready commands for the rest (slash commands for plugins, Neon signup URL, env keys, Claude Code install command if missing). No Vercel CLI required — deploys happen via GitHub push. Beginner-friendly — assumes zero prior knowledge, explains each step, stops at every human gate with clear instructions.
 ---
 
 # Skill — setup-kit
@@ -11,7 +11,7 @@ Take a brand-new user from **« Claude Code just installed, repo just cloned »*
 
 The kit is **cloud-only by design**. No Docker. No local Postgres. No MinIO. No Mailpit. The only mandatory dependency is a Postgres database — and a free Neon project takes 30 seconds to create. The 5 optional providers (Resend / R2 / Bictorys / Google OAuth / Sentry / Upstash) are env-gated and inert when absent.
 
-This skill exists because [WORKFLOW.md](../../../WORKFLOW.md) lists ~8 pre-requisites (Node, pnpm, gh CLI, vercel CLI, 4 Claude Code skills, Neon account, Banani account, .mcp.json edit, .env.local creation, secret generation) and a beginner cannot reliably execute that list without guidance.
+This skill exists because [WORKFLOW.md](../../../WORKFLOW.md) lists ~8 pre-requisites (Claude Code itself, Node, pnpm, gh CLI, 4 Claude Code skills, Neon account, Banani account, .mcp.json edit, .env.local creation, secret generation) and a beginner cannot reliably execute that list without guidance. Deploys go through GitHub push (Vercel imports the repo), so no Vercel CLI install is required locally.
 
 > **Not a magic button.** Several steps require human action (creating Neon + Banani accounts, copying API keys, pasting `/plugin` commands) — the AI cannot do them. The skill makes these gates **explicit, sequential, and unmissable**, instead of letting a beginner discover them via cryptic build errors.
 
@@ -41,10 +41,10 @@ Run these probes via Bash **in parallel** and build a table.
 
 | Check | Command | Pass criterion |
 |---|---|---|
+| Claude Code CLI | `claude --version 2>/dev/null \|\| echo MISSING` | semver string (informational — most users run the VS Code extension instead) |
 | Node version | `node -v 2>/dev/null \|\| echo MISSING` | starts with `v20.` or higher |
 | pnpm version | `pnpm -v 2>/dev/null \|\| echo MISSING` | starts with `9.` or higher |
 | GitHub CLI auth | `gh auth status 2>&1 \| head -1` | « Logged in to github.com » present |
-| Vercel CLI | `vercel --version 2>/dev/null \|\| echo MISSING` | semver string |
 | Repo `frontend/.env.local` | `test -f frontend/.env.local && echo EXISTS \|\| echo MISSING` | EXISTS |
 | Repo `node_modules` | `test -d frontend/node_modules && echo EXISTS \|\| echo MISSING` | EXISTS |
 | MCP config | `test -f .mcp.json && echo EXISTS \|\| echo MISSING` | EXISTS |
@@ -63,8 +63,9 @@ Print the result as a checklist:
 🔍 AUDIT
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SYSTÈME
+  ℹ️  Claude Code CLI (extension VS Code OK aussi)
   ✅ Node 20.x       ❌ pnpm (manquant)
-  ⏳ gh CLI (pas authentifié)  ❌ Vercel CLI
+  ⏳ gh CLI (pas authentifié)
   ✅ .mcp.json présent
 
 CLAUDE CODE SKILLS
@@ -79,7 +80,7 @@ REPO
 
 COMPTES (action humaine requise)
   🙋 Neon Postgres   🙋 Banani
-  🙋 GitHub          🙋 Vercel
+  🙋 GitHub
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -89,10 +90,12 @@ For each MISSING item, take the action below. **NEVER skip a missing one silentl
 
 | Manquant | Action AI | Action humaine |
 |---|---|---|
+| **Claude Code (CLI absent)** | — | « Si tu lis ceci, Claude Code tourne déjà — soit en extension VS Code (la plupart des gens), soit en CLI. La CLI est optionnelle. Si tu veux quand même la CLI dans le terminal : `npm install -g @anthropic-ai/claude-code` (Node 20+ requis). Pour l'extension VS Code : cherche « Claude Code » dans le Marketplace VS Code et clique Install. » |
 | **Node < 20** | — | « Va sur https://nodejs.org/en/download → installe la version LTS (≥ 20). Relance `/setup-kit` après. » Stop. |
 | **pnpm** | `corepack enable && corepack prepare pnpm@latest --activate` | Aucune (Corepack ship avec Node 20) |
 | **gh CLI** | Sur macOS : `brew install gh` après confirmation. Sinon afficher https://cli.github.com/ | Puis `gh auth login` — interactif, choisir « GitHub.com » → « HTTPS » → ouvrir le navigateur |
-| **Vercel CLI** | `npm i -g vercel` (auto, sûr) | Puis `vercel login` — interactif |
+
+> **Pas de Vercel CLI requise.** Le déploiement passe par GitHub push → import du repo dans Vercel (ou autre hébergeur). Aucun outil local en plus.
 
 After each install, **re-run the matching probe** to confirm. If install fails, do not proceed — explique l'erreur en français simple et propose **une seule** alternative.
 

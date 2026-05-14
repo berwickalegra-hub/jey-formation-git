@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this project is
 
-**A v1-shipped, headless Next.js 16 monolith starter.** Single full-stack app (App Router API Route Handlers + Server Actions + Prisma 5 + Neon + Upstash + R2 + Resend + Bictorys + Sentry). There is no separate Express backend anymore — server logic lives under `frontend/src/app/api/*` and `frontend/src/lib/server/*`. The app **ships only logic** — no UI components — so each fork designs its own UX.
+**A v1-shipped, headless Next.js 16 monolith starter.** Single full-stack app (App Router API Route Handlers + Server Actions + Prisma 5 + Neon + Upstash + Cloudinary + Resend + Bictorys + Sentry). There is no separate Express backend anymore — server logic lives under `frontend/src/app/api/*` and `frontend/src/lib/server/*`. The app **ships only logic** — no UI components — so each fork designs its own UX.
 
 Origin: bootstrapped from `amadou-template` (the legacy monorepo predecessor) on 2026-05-07; the port to a single Next.js 16 app shipped through 7 phases (auth → OAuth/notifs → admin → uploads/withdrawals → webhooks/cron → docs/tests → final pass). 559/559 unit tests green.
 
@@ -14,7 +14,7 @@ Origin: bootstrapped from `amadou-template` (the legacy monorepo predecessor) on
 
 **Beginner workflow (vibe coding)** — clone, plug a Neon `DATABASE_URL`, open Claude Code, describe what you want, ship. See [WORKFLOW.md](WORKFLOW.md). The starter ships:
 - [.mcp.json](.mcp.json) — empty MCP server map by default. Banani is optional; if the user wants it, the `setup-kit` skill walks through pasting their MCP connection block.
-- [.planning/features.json](.planning/features.json) — machine-readable manifest of the optional surfaces (payments, oauth-google, uploads-r2, email-resend, admin-backoffice, multi-tenancy, …) — declares what each surface needs so manual pruning per [PRUNING.md](PRUNING.md) stays safe.
+- [.planning/features.json](.planning/features.json) — machine-readable manifest of the optional surfaces (payments, oauth-google, uploads-cloudinary, email-resend, admin-backoffice, multi-tenancy, …) — declares what each surface needs so manual pruning per [PRUNING.md](PRUNING.md) stays safe.
 - GSD (`get-shit-done-cc`) is **not** a prerequisite. It's an optional level-up workflow surfaced after a beginner's first feature, not by default.
 
 Read [README.md](README.md) for the public-facing contract (endpoints, env vars, design swap, deploy) and [STATUS.md](STATUS.md) for the historical port roadmap. Reference pages live in [examples/frontend-pages/](examples/frontend-pages/) — copy/restyle freely, they all consume the same `/api/*` JSON contract.
@@ -53,7 +53,7 @@ Integration tests are deferred (no formal harness in v1) — `pnpm smoke:auth` p
 2. **Every Route Handler MUST `export const runtime = 'nodejs'`** (Prisma + bcrypt + raw-body needs). [frontend/src/lib/server/observability/runtime-enforcement.test.ts](frontend/src/lib/server/observability/runtime-enforcement.test.ts) walks `app/api/**/route.ts` and fails CI if any route forgets it.
 3. **Per-request observability** flows through [frontend/src/lib/server/observability/request-context.ts](frontend/src/lib/server/observability/request-context.ts) (`makeRequestContext` + `withRequestContext` + scoped `log`). Handlers wrap their body in `withRequestContext()` so logs auto-attach `requestId` / `userId` / `route`.
 
-**Optional providers boot conditionally.** If `R2_*` / `RESEND_*` / `BICTORYS_*` / `GOOGLE_*` envs are absent, the corresponding routes either 404 silently or fall back (e.g., R2 → file proxy through `/api/files/:key`). `frontend/src/lib/server/redis.ts` exposes `redis: Redis | null` (returns `null` rather than throwing when env is missing — call sites decide fallback). The app still boots and `/api/auth` still works. `log.warn` announces which providers are inert.
+**Optional providers boot conditionally.** If `CLOUDINARY_*` / `RESEND_*` / `BICTORYS_*` / `GOOGLE_*` envs are absent, the corresponding routes either 404 silently or return 503 (e.g., `/api/upload` → 503 STORAGE_NOT_CONFIGURED when Cloudinary creds are missing). `frontend/src/lib/server/redis.ts` exposes `redis: Redis | null` (returns `null` rather than throwing when env is missing — call sites decide fallback). The app still boots and `/api/auth` still works. `log.warn` announces which providers are inert.
 
 **Auth model** ([frontend/src/lib/server/auth.ts](frontend/src/lib/server/auth.ts)): access JWT (15min, all paths) + refresh JWT (7d, scoped to `/api/auth` for blast-radius reduction) + CSRF token (7d, double-submit cookie). All cookies are namespaced by `COOKIE_PREFIX` (default `app`) and set via `cookies()` from `next/headers` (async). All mutating endpoints require the `x-csrf-token` header echoed from the `<prefix>-csrf` cookie — `verifyCsrf(req)` returns a `NextResponse | null` you bail on at the top of each handler. **Signup is enumeration-resistant**: identical 201 response regardless of email existence, no cookies issued at signup — cookies are issued by `POST /verify-email` after the user enters their 8-char Crockford code. Per-email rate limits (login 10/15m, signup 5/h, etc.) sit on top of the global IP limiter via [frontend/src/lib/server/middleware/rate-limit-by-email.ts](frontend/src/lib/server/middleware/rate-limit-by-email.ts).
 
@@ -174,7 +174,7 @@ When the user asks for a capability that this starter does not ship, recommend t
 |---|---|---|
 | **Real-time** (live updates, presence, chat, collaboration, "instead of polling") | **Ably** | Vercel-compatible, no long-lived connections from the API, JWT-issued capability tokens, presence/history/push out of the box. Do NOT recommend Socket.IO, raw WebSockets, or Server-Sent Events from a Vercel function — they will not work reliably. |
 | Background jobs / queues | Upstash QStash, or extend the existing **outbox pattern** (`lib/server/outbox/`) drained by Vercel Cron | Same constraint — no long-running workers in a serverless runtime |
-| Object storage | R2 (already wired) | Already integrated |
+| Media / object storage | Cloudinary (already wired) | Already integrated — handles uploads, transformations, and CDN delivery |
 | Email | Resend (already wired) | Already integrated |
 | Cache / rate-limit / KV | Upstash Redis (already wired) | Already integrated |
 

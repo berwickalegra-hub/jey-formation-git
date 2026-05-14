@@ -64,12 +64,11 @@ Multi-tenancy (Organizations) deferred per ROADMAP — Prisma models + middlewar
 
 ### Phase 4 — Upload, Files, Withdrawals (commits TBD)
 
-`POST /api/upload` ships with `req.formData()` + `File.arrayBuffer()` + magic-byte sniff against `UPLOAD_ALLOWED_MIME` allowlist (no trusting `File.type`). `GET /api/files/[...key]` proxies R2/S3 stream with owner gate + ETag forwarding; falls back to DB-stored content when R2 unconfigured. `POST /api/withdrawals` runs the 8-code guard chain (`AMOUNT_BELOW_MIN`, `AMOUNT_ABOVE_MAX`, `DAILY_LIMIT_EXCEEDED`, `COOLDOWN_ACTIVE`, `PIN_NOT_SET`, `PIN_REQUIRED`, `PIN_INVALID`, `INSUFFICIENT_BALANCE`) inside a Serializable transaction guarded by `pg_advisory_xact_lock(hashtext(userId))` — race-free per WD-01. `WITHDRAWAL_BALANCE_CHECK=1` default; disable documented as financial-safety risk.
+`POST /api/upload` ships with `req.formData()` + `File.arrayBuffer()` + magic-byte sniff against `UPLOAD_ALLOWED_MIME` allowlist (no trusting `File.type`). The upload route forwards bytes to Cloudinary via `upload_stream` and returns the `secure_url` directly — files are CDN-served, no owner-gated proxy ships (the historical R2-era `/api/files/[...key]` route was retired when the storage backend swapped to Cloudinary). `POST /api/withdrawals` runs the 8-code guard chain (`AMOUNT_BELOW_MIN`, `AMOUNT_ABOVE_MAX`, `DAILY_LIMIT_EXCEEDED`, `COOLDOWN_ACTIVE`, `PIN_NOT_SET`, `PIN_REQUIRED`, `PIN_INVALID`, `INSUFFICIENT_BALANCE`) inside a Serializable transaction guarded by `pg_advisory_xact_lock(hashtext(userId))` — race-free per WD-01. `WITHDRAWAL_BALANCE_CHECK=1` default; disable documented as financial-safety risk.
 
 | Endpoint                | Method | Status | Requirement   |
 | ----------------------- | ------ | ------ | ------------- |
 | `/api/upload`           | POST   | ✓      | UP-01         |
-| `/api/files/[...key]`   | GET    | ✓      | UP-02         |
 | `/api/withdrawals`      | POST   | ✓      | WD-01-02-04   |
 | `/api/withdrawals`      | GET    | ✓      | WD-03         |
 
@@ -104,7 +103,7 @@ In-memory CircuitBreaker remains single-instance per CLAUDE.md ("documented limi
 ### M1 — Scaffold
 
 - `frontend/prisma/` — schema + 4 migrations copied from `amadou-template/backend/prisma/`
-- `frontend/package.json` — Prisma 5, bcryptjs, jose, arctic, @upstash/redis, resend, @aws-sdk/client-s3, @sentry/nextjs, server-only, vitest, tsx
+- `frontend/package.json` — Prisma 5, bcryptjs, jose, arctic, @upstash/redis, resend, cloudinary, @sentry/nextjs, server-only, vitest, tsx
 - Workspace narrowed to `frontend/` only
 - Root `package.json` scripts re-pointed at `--filter frontend`
 - `pnpm install` passes; Prisma client generates

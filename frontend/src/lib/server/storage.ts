@@ -1,23 +1,23 @@
 /**
- * StorageClient — provider-agnostic interface, R2 implementation.
+ * StorageClient — provider-agnostic interface, Cloudinary implementation.
  *
- * The contract is narrow on purpose: putObject / getObjectStream /
- * deleteObject. Routes import the interface, not the R2 specifics, so
- * a future swap (S3, GCS, local FS) only changes this file.
+ * The contract is narrow on purpose: putObject / deleteObject. Routes import
+ * the interface, not the Cloudinary specifics, so a future swap (S3, R2, GCS,
+ * local FS) only changes this file.
  *
- * Implementation uses the AWS S3 client pointed at the R2 endpoint
- * (`https://<account>.r2.cloudflarestorage.com`), region "auto",
- * signature v4. Files are private by default; public exposure is via
- * the `/api/files/:key` proxy route, not direct R2 URLs.
+ * Implementation uses the official `cloudinary` SDK (v2 namespace) and routes
+ * uploads through `uploader.upload_stream`. Files are public-by-default via
+ * Cloudinary's `secure_url` — no proxy route is needed for the starter (a
+ * future fork that wants private files adds Cloudinary signed-delivery + a
+ * proxy route back).
+ *
+ * NOTE on field naming: `key` in this interface and in the `FileUpload`
+ * Prisma model stores Cloudinary's `public_id` (formerly R2 object key —
+ * same semantics: a unique opaque string the storage backend addresses by).
+ * Field name preserved for forward-compatibility with non-Cloudinary
+ * providers; no schema migration was needed for the swap.
  */
-import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-  DeleteObjectCommand,
-  NoSuchKey,
-} from '@aws-sdk/client-s3';
-import type { Readable } from 'node:stream';
+import { v2 as cloudinary, type UploadApiResponse } from 'cloudinary';
 
 export interface PutObjectInput {
   key: string;
@@ -25,82 +25,72 @@ export interface PutObjectInput {
   contentType: string;
 }
 
-export interface ObjectStreamResult {
-  stream: Readable;
-  contentType: string;
-  contentLength: number;
+export interface PutObjectResult {
+  /** Storage-addressable identifier (Cloudinary public_id). */
+  key: string;
+  /** Public CDN URL (Cloudinary secure_url). */
+  url: string;
+  /** Stored byte length (Cloudinary `bytes`). */
+  bytes: number;
 }
 
 export interface StorageClient {
-  putObject(input: PutObjectInput): Promise<void>;
-  getObjectStream(key: string): Promise<ObjectStreamResult | null>;
+  putObject(input: PutObjectInput): Promise<PutObjectResult>;
   deleteObject(key: string): Promise<void>;
 }
 
 export interface CreateStorageClientEnv {
-  R2_ACCOUNT_ID: string;
-  R2_ACCESS_KEY_ID: string;
-  R2_SECRET_ACCESS_KEY: string;
-  R2_BUCKET: string;
-  /** Optional public bucket URL — present means callers MAY rewrite to public URL. */
-  R2_PUBLIC_URL?: string;
+  CLOUDINARY_CLOUD_NAME: string;
+  CLOUDINARY_API_KEY: string;
+  CLOUDINARY_API_SECRET: string;
+  /** Optional upload preset — unsigned uploads or named transformation config. */
+  CLOUDINARY_UPLOAD_PRESET?: string;
 }
 
 export function createStorageClient(env: CreateStorageClientEnv): StorageClient {
-  if (!env.R2_ACCOUNT_ID || !env.R2_ACCESS_KEY_ID || !env.R2_SECRET_ACCESS_KEY || !env.R2_BUCKET) {
+  if (!env.CLOUDINARY_CLOUD_NAME || !env.CLOUDINARY_API_KEY || !env.CLOUDINARY_API_SECRET) {
     throw new Error(
-      'createStorageClient: missing one of R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET',
+      'createStorageClient: missing one of CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET',
     );
   }
 
-  const s3 = new S3Client({
-    region: 'auto',
-    endpoint: `https://${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: env.R2_ACCESS_KEY_ID,
-      secretAccessKey: env.R2_SECRET_ACCESS_KEY,
-    },
+  cloudinary.config({
+    cloud_name: env.CLOUDINARY_CLOUD_NAME,
+    api_key: env.CLOUDINARY_API_KEY,
+    api_secret: env.CLOUDINARY_API_SECRET,
+    secure: true,
   });
-  const bucket = env.R2_BUCKET;
+
+  const uploadPreset = env.CLOUDINARY_UPLOAD_PRESET;
 
   return {
     async putObject(input) {
-      await s3.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: input.key,
-          Body: input.body,
-          ContentType: input.contentType,
-        }),
-      );
-    },
+      const body = Buffer.isBuffer(input.body) ? input.body : Buffer.from(input.body);
+      const result = await new Promise<UploadApiResponse>((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            public_id: input.key,
+            resource_type: 'auto',
+            ...(uploadPreset ? { upload_preset: uploadPreset } : {}),
+          },
+          (err, res) => {
+            if (err) return reject(err);
+            if (!res) return reject(new Error('Cloudinary upload returned no response'));
+            resolve(res);
+          },
+        );
+        stream.end(body);
+      });
 
-    async getObjectStream(key) {
-      try {
-        const res = await s3.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
-        if (!res.Body) return null;
-        return {
-          stream: res.Body as Readable,
-          contentType: res.ContentType ?? 'application/octet-stream',
-          contentLength: typeof res.ContentLength === 'number' ? res.ContentLength : 0,
-        };
-      } catch (err) {
-        if (err instanceof NoSuchKey) return null;
-        // Some R2 edges throw a generic error with name === 'NoSuchKey'.
-        if (
-          typeof err === 'object' &&
-          err !== null &&
-          'name' in err &&
-          (err as { name: string }).name === 'NoSuchKey'
-        ) {
-          return null;
-        }
-        throw err;
-      }
+      return {
+        key: result.public_id,
+        url: result.secure_url,
+        bytes: typeof result.bytes === 'number' ? result.bytes : body.length,
+      };
     },
 
     async deleteObject(key) {
-      await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+      await cloudinary.uploader.destroy(key, { resource_type: 'image', invalidate: true });
     },
   };
 }
@@ -108,23 +98,23 @@ export function createStorageClient(env: CreateStorageClientEnv): StorageClient 
 /**
  * Lazy boot helper — returns a storage client when env is fully set,
  * or `null` when any required var is missing. Callers can use this to
- * gracefully no-op uploads in dev without R2.
+ * gracefully no-op uploads in dev without Cloudinary.
  */
 export function tryCreateStorageClient(): StorageClient | null {
   if (
-    !process.env.R2_ACCOUNT_ID ||
-    !process.env.R2_ACCESS_KEY_ID ||
-    !process.env.R2_SECRET_ACCESS_KEY ||
-    !process.env.R2_BUCKET
+    !process.env.CLOUDINARY_CLOUD_NAME ||
+    !process.env.CLOUDINARY_API_KEY ||
+    !process.env.CLOUDINARY_API_SECRET
   ) {
     return null;
   }
   const env: CreateStorageClientEnv = {
-    R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID,
-    R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
-    R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
-    R2_BUCKET: process.env.R2_BUCKET,
+    CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
+    CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
+    CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
   };
-  if (process.env.R2_PUBLIC_URL) env.R2_PUBLIC_URL = process.env.R2_PUBLIC_URL;
+  if (process.env.CLOUDINARY_UPLOAD_PRESET) {
+    env.CLOUDINARY_UPLOAD_PRESET = process.env.CLOUDINARY_UPLOAD_PRESET;
+  }
   return createStorageClient(env);
 }

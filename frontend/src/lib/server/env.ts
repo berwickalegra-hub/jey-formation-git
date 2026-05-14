@@ -10,7 +10,7 @@ import { z } from 'zod';
 // same min(32) constraint here so the failure surfaces sooner (boot
 // instead of first auth call).
 //
-// OPTIONAL providers (Redis, Resend, R2, Bictorys, Sentry) are NOT
+// OPTIONAL providers (Redis, Resend, Cloudinary, Bictorys, Sentry) are NOT
 // validated here. They're load-bearing only when you call into them,
 // and validating them at boot would force every fork to populate every
 // optional integration before `pnpm dev` works. The relevant lib file

@@ -1,14 +1,9 @@
-// Phase 4 Plan 04-01 — RED tests for POST /api/upload (UP-01).
-//
-// Wave 0 contract: these tests are intentionally RED. The `./route` module
-// does not exist yet — Wave 1 (Plan 04-02 or equivalent) will create it
-// and turn the suite green. RED here is the test contract — every Wave 1
-// status code, error code, and side-effect is locked here.
+// Tests for POST /api/upload — Cloudinary edition.
 //
 // Mock strategy:
-//   - `@/lib/server/upload/r2-client`: stubbed via vi.mock so the real
-//     S3Client is never constructed. `mockR2Client()` from r2-mock.ts
-//     supplies a `send()` that branches by command name.
+//   - `@/lib/server/upload/cloudinary-client`: stubbed via vi.mock so the real
+//     Cloudinary SDK is never invoked. `mockCloudinaryClient()` from
+//     cloudinary-mock.ts supplies a happy `uploadBuffer()` by default.
 //   - `@/lib/server/middleware`: mocked so requireAuth returns a happy
 //     user ctx by default. Per-test mockReturnValueOnce overrides simulate
 //     401.
@@ -17,18 +12,17 @@
 //   - `@/lib/server/prisma`: mocked so fileUpload.create can assert calls
 //     without a real DB.
 //
-// Env stubs: each test calls `vi.stubEnv` for UPLOAD_* and R2_* so the
-// route's module-scope env reads see the right values. `vi.unstubAllEnvs`
+// Env stubs: each test calls `vi.stubEnv` for UPLOAD_* and CLOUDINARY_* so the
+// route's handler-time env reads see the right values. `vi.unstubAllEnvs`
 // in afterEach prevents bleed across tests.
 import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
 import { NextResponse } from 'next/server';
-import { mockR2Client } from '@/test-utils/r2-mock';
+import { mockCloudinaryClient } from '@/test-utils/cloudinary-mock';
 
-const r2 = mockR2Client();
+const cl = mockCloudinaryClient();
 
-vi.mock('@/lib/server/upload/r2-client', () => ({
-  getR2Client: vi.fn(() => r2),
-  getR2Bucket: vi.fn(() => 'test-bucket'),
+vi.mock('@/lib/server/upload/cloudinary-client', () => ({
+  uploadBuffer: vi.fn((publicId: string, body: Buffer) => cl.uploadBuffer(publicId, body)),
   StorageNotConfiguredError: class StorageNotConfiguredError extends Error {
     constructor() {
       super('Storage not configured');
@@ -60,10 +54,9 @@ vi.mock('@/lib/server/prisma', () => ({
 beforeEach(() => {
   vi.stubEnv('UPLOAD_ALLOWED_MIME', 'image/jpeg,image/png,image/webp');
   vi.stubEnv('UPLOAD_MAX_BYTES', '10485760');
-  vi.stubEnv('R2_ACCOUNT_ID', 'acct');
-  vi.stubEnv('R2_BUCKET', 'bucket');
-  vi.stubEnv('R2_ACCESS_KEY_ID', 'key');
-  vi.stubEnv('R2_SECRET_ACCESS_KEY', 'secret');
+  vi.stubEnv('CLOUDINARY_CLOUD_NAME', 'test-cloud');
+  vi.stubEnv('CLOUDINARY_API_KEY', 'test-key');
+  vi.stubEnv('CLOUDINARY_API_SECRET', 'test-secret');
 });
 
 afterEach(() => {
@@ -88,7 +81,7 @@ function makeReq(file: File | null, opts: MakeReqOpts = { csrf: true, auth: true
   });
 }
 
-describe('POST /api/upload (RED — Wave 1 will turn these green)', () => {
+describe('POST /api/upload (Cloudinary)', () => {
   it('valid jpeg uploads', async () => {
     const { POST } = await import('./route');
     const jpeg = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], 'photo.jpg', {
@@ -97,7 +90,8 @@ describe('POST /api/upload (RED — Wave 1 will turn these green)', () => {
     const res = await POST(makeReq(jpeg) as never);
     expect(res.status).toBe(201);
     const body = await res.json();
-    expect(body.key).toMatch(/^user-1\/.+\.jpg$/);
+    expect(body.key).toMatch(/^user-1\/.+$/);
+    expect(body.url).toMatch(/^https:\/\/res\.cloudinary\.com\//);
     expect(prismaCreate).toHaveBeenCalled();
   });
 
@@ -134,13 +128,8 @@ describe('POST /api/upload (RED — Wave 1 will turn these green)', () => {
     expect(body.code).toBe('FILE_TOO_LARGE');
   });
 
-  it('storage not configured', async () => {
-    vi.stubEnv('R2_ACCOUNT_ID', '');
-    const { getR2Client, StorageNotConfiguredError } =
-      await import('@/lib/server/upload/r2-client');
-    (getR2Client as unknown as Mock).mockImplementationOnce(() => {
-      throw new StorageNotConfiguredError();
-    });
+  it('storage not configured (env missing)', async () => {
+    vi.stubEnv('CLOUDINARY_CLOUD_NAME', '');
     const { POST } = await import('./route');
     const f = new File([new Uint8Array([0xff, 0xd8, 0xff])], 'x.jpg', { type: 'image/jpeg' });
     const res = await POST(makeReq(f) as never);
@@ -157,12 +146,10 @@ describe('POST /api/upload (RED — Wave 1 will turn these green)', () => {
     expect(body.code).toBe('UPLOAD_MISSING_FILE');
   });
 
-  it('upload failed', async () => {
-    const { getR2Client } = await import('@/lib/server/upload/r2-client');
-    (getR2Client as unknown as Mock).mockReturnValueOnce({
-      send: vi.fn(async () => {
-        throw new Error('R2 down');
-      }),
+  it('upload failed (cloudinary throws)', async () => {
+    const { uploadBuffer } = await import('@/lib/server/upload/cloudinary-client');
+    (uploadBuffer as unknown as Mock).mockImplementationOnce(async () => {
+      throw new Error('Cloudinary down');
     });
     const { POST } = await import('./route');
     const f = new File([new Uint8Array([0xff, 0xd8, 0xff])], 'a.jpg', { type: 'image/jpeg' });

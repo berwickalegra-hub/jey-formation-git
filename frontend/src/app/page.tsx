@@ -49,7 +49,11 @@ export default function Home() {
     },
     { label: 'RESEND_API_KEY', ok: !!env.RESEND_API_KEY, hint: 'Email sender' },
     { label: 'EMAIL_FROM', ok: !!env.EMAIL_FROM, hint: 'Verified sender address' },
-    { label: 'R2_ACCOUNT_ID', ok: !!env.R2_ACCOUNT_ID, hint: 'Cloudflare R2 file storage' },
+    {
+      label: 'CLOUDINARY_CLOUD_NAME',
+      ok: !!env.CLOUDINARY_CLOUD_NAME,
+      hint: 'Cloudinary file / media storage',
+    },
     { label: 'BICTORYS_API_KEY', ok: !!env.BICTORYS_API_KEY, hint: 'Mobile money payments' },
     { label: 'SENTRY_DSN', ok: !!env.SENTRY_DSN, hint: 'Error reporting + traces' },
   ];

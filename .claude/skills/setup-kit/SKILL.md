@@ -42,6 +42,8 @@ Run these probes via Bash **in parallel** and build a table.
 | Check | Command | Pass criterion |
 |---|---|---|
 | Claude Code CLI | `claude --version 2>/dev/null \|\| echo MISSING` | semver string (informational — most users run the VS Code extension instead) |
+| Git installed | `git --version 2>/dev/null \|\| echo MISSING` | semver string (hard blocker — without Git the user can't push their work) |
+| **Repo is a git clone** (not ZIP) | `test -d .git && echo REPO \|\| echo NOT-A-REPO` | REPO (NOT-A-REPO = user downloaded the ZIP from GitHub instead of cloning → can't push later; hard blocker) |
 | Node version | `node -v 2>/dev/null \|\| echo MISSING` | starts with `v20.` or higher |
 | pnpm version | `pnpm -v 2>/dev/null \|\| echo MISSING` | starts with `9.` or higher |
 | GitHub CLI auth | `gh auth status 2>&1 \| head -1` | « Logged in to github.com » present |
@@ -49,7 +51,7 @@ Run these probes via Bash **in parallel** and build a table.
 | Repo `node_modules` | `test -d frontend/node_modules && echo EXISTS \|\| echo MISSING` | EXISTS |
 | MCP config | `test -f .mcp.json && echo EXISTS \|\| echo MISSING` | EXISTS |
 | Banani MCP configured (optional) | `node -e 'try{const j=require("./.mcp.json");console.log(Object.keys(j.mcpServers\|\|{}).length?"CONFIGURED":"EMPTY")}catch(e){console.log("MISSING")}'` | EMPTY by default (Banani optional — user opts in in Phase 5). CONFIGURED only if Phase 5 already ran. |
-| `DATABASE_URL` set | `grep -hq '^DATABASE_URL=postgresql://' frontend/.env.local frontend/.env 2>/dev/null && echo SET \|\| echo UNSET` | SET (must point at Neon, see Phase 4) — checks both `.env.local` and `.env` |
+| `DATABASE_URL` set | `grep -hq '^DATABASE_URL=postgresql://' frontend/.env.local frontend/.env 2>/dev/null && echo SET \|\| echo UNSET` | SET (any Postgres URL — Neon recommended, but Supabase/Railway/Render/RDS all work) |
 
 For Claude Code skills, check the system-reminder context loaded at session start — these 3 skill names must appear in the active skills list:
 - `superpowers:*` (any — e.g. `superpowers:using-superpowers`)
@@ -65,6 +67,7 @@ Print the result as a checklist:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 SYSTÈME
   ℹ️  Claude Code CLI (extension VS Code OK aussi)
+  ✅ Git installé    ✅ Repo cloné (.git présent)
   ✅ Node 20.x       ❌ pnpm (manquant)
   ⏳ gh CLI (pas authentifié)
   ✅ .mcp.json présent
@@ -76,14 +79,19 @@ CLAUDE CODE SKILLS
 REPO
   ❌ frontend/.env.local manquant
   ❌ frontend/node_modules manquant
-  ❌ DATABASE_URL pas défini (Neon requis)
+  ❌ DATABASE_URL pas défini (Postgres requis)
   ℹ️  Banani MCP (optionnel — Phase 5)
 
 COMPTES (action humaine requise)
-  🙋 Neon Postgres   🙋 GitHub
+  🙋 Postgres (Neon recommandé)   🙋 GitHub
   ℹ️  Banani (optionnel)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+> **🚨 Blocker NOT-A-REPO** : si la probe « Repo is a git clone » renvoie `NOT-A-REPO`, l'user a téléchargé le ZIP au lieu de cloner. **Stop la Phase 1** et dis-lui : *« Tu as téléchargé le ZIP au lieu de cloner — tu ne pourras pas pousser ton travail sur GitHub plus tard. Ferme VS Code, supprime ce dossier, puis fais l'une de ces 2 options :
+> - Terminal : `gh repo clone <owner>/<repo>` (ou `git clone https://github.com/<owner>/<repo>.git`)
+> - GitHub Desktop (https://desktop.github.com) si tu préfères cliquer.
+> Puis relance Claude Code dans le nouveau dossier et tape `/setup-kit`. »*
 
 ### Phase 1 — Outils système
 
@@ -91,9 +99,11 @@ For each MISSING item, take the action below. **NEVER skip a missing one silentl
 
 | Manquant | Action AI | Action humaine |
 |---|---|---|
-| **Claude Code (CLI absent)** | — | « Si tu lis ceci, Claude Code tourne déjà — soit en extension VS Code (la plupart des gens), soit en CLI. La CLI est optionnelle. Si tu veux quand même la CLI dans le terminal : `npm install -g @anthropic-ai/claude-code` (Node 20+ requis). Pour l'extension VS Code : cherche « Claude Code » dans le Marketplace VS Code et clique Install. » |
+| **Claude Code (CLI absent)** | — | « Si tu lis ceci, Claude Code tourne déjà — soit en extension VS Code / Cursor / Windsurf / Antigravity (la plupart des gens), soit en CLI. La CLI est optionnelle. Si tu veux quand même la CLI dans le terminal : `npm install -g @anthropic-ai/claude-code` (Node 20+ requis). » |
+| **Git absent** | Sur macOS : `brew install git` après confirmation. Sur Linux : `sudo apt install git` (Ubuntu/Debian) ou équivalent. Sur Windows : `winget install Git.Git`. | Sans Git, pas de clone, pas de push, pas de commit — Stop tant que ce n'est pas installé. |
+| **NOT-A-REPO** (ZIP download) | — | « Tu as téléchargé le ZIP au lieu de cloner. Ferme VS Code, supprime ce dossier, puis `gh repo clone <owner>/<repo>` (ou `git clone <https-url>` si tu n'as pas gh CLI). Relance `/setup-kit` dans le nouveau dossier. » Stop. |
 | **Node < 20** | — | « Va sur https://nodejs.org/en/download → installe la version LTS (≥ 20). Relance `/setup-kit` après. » Stop. |
-| **pnpm** | `corepack enable && corepack prepare pnpm@latest --activate` | Aucune (Corepack ship avec Node 20) |
+| **pnpm** | `corepack enable && corepack prepare pnpm@latest --activate` | Aucune (Corepack ship avec Node 20). Sur Windows PowerShell, si erreur `cannot be loaded because running scripts is disabled` : exécuter dans PowerShell admin `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`, puis relancer Corepack. |
 | **gh CLI** | Sur macOS : `brew install gh` après confirmation. Sinon afficher https://cli.github.com/ | Puis `gh auth login` — interactif, choisir « GitHub.com » → « HTTPS » → ouvrir le navigateur |
 
 > **Pas de Vercel CLI requise.** Le déploiement passe par GitHub push → import du repo dans Vercel (ou autre hébergeur). Aucun outil local en plus.
@@ -118,11 +128,16 @@ Une fois confirmé : « **Redémarre Claude Code** pour que les plugins se charg
 
 > **GSD intentionnellement omis ici.** GSD est un workflow procédural (~30 slash commands, plans/phases/commits atomiques) qui sert vraiment quand le projet devient gros. Pour un premier MVP en vibe coding, c'est de la cérémonie. On le surface en Phase 7 quand le user a terminé sa première feature, pas avant.
 
-### Phase 3 — Compte Neon (la SEULE dépendance obligatoire)
+### Phase 3 — Compte Postgres (la SEULE dépendance obligatoire)
 
-Le kit est **cloud-only** — pas de Postgres local. Une fois Neon en place, tout le reste boote.
+Le kit est **cloud-only** — pas de Postgres local. **Neon est recommandé** (free tier généreux, 30 sec à provisionner, supporte natif `-pooler` + `DIRECT_URL`), mais n'importe quel Postgres marche : **Supabase**, **Railway**, **Render**, **AWS RDS**, **Postgres self-hosted**. Le kit ne dépend que de Prisma + Postgres standard, pas d'extensions Neon-spécifiques.
 
-Étapes (un compte à la fois, attends confirmation entre chaque) :
+**Demande à l'user** : *« Tu as déjà un Postgres ? oui (Supabase/Railway/Render/RDS/autre) / non (créer un Neon) »*
+
+- **non** → suis le chemin Neon ci-dessous (recommandé, le plus rapide).
+- **oui** → l'user te colle ses 2 URLs (pooled + direct si l'hébergeur les distingue, sinon la même URL deux fois). Saute aux étapes 3-4.
+
+**Chemin Neon (cas par défaut)** :
 
 1. **Inscription Neon** — « Va sur https://neon.tech, inscription gratuite (Google / GitHub OK). 30 secondes. Confirme quand c'est fait. »
 2. **Création projet** — « Dans le dashboard Neon, clique "New Project". Nomme-le comme tu veux. Sélectionne la région la plus proche. Confirme quand c'est créé. »
@@ -131,6 +146,11 @@ Le kit est **cloud-only** — pas de Postgres local. Une fois Neon en place, tou
    - `DIRECT_URL` = la version **SANS** `-pooler` (pour `prisma migrate`)
    - Colle-les ici dans le chat (l'IA va les écrire dans `.env.local` pour toi). »
 4. **AI écrit `.env.local`** — `cp .env.example frontend/.env.local` puis `Edit` pour insérer les deux URLs aux bonnes lignes.
+
+**Mapping pour autres hébergeurs** (si l'user a choisi *« oui, déjà un Postgres »*) :
+- **Supabase** : Settings → Database → *Connection string* → URL "Transaction pooler" (port 6543) pour `DATABASE_URL`, URL "Session pooler" ou direct (port 5432) pour `DIRECT_URL`.
+- **Railway / Render** : copie la même URL Postgres deux fois (pas de pooler séparé) — fonctionne mais perfs moins bonnes que Neon en serverless.
+- **RDS / self-hosted** : `DATABASE_URL=postgresql://user:pass@host:5432/db?sslmode=require` deux fois. Ajoute un pooler (PgBouncer) plus tard si tu scale.
 
 ### Phase 4 — Install du repo + secrets
 

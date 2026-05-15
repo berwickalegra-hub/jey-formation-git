@@ -51,7 +51,7 @@ Run these probes via Bash **in parallel** and build a table.
 | Repo `node_modules` | `test -d frontend/node_modules && echo EXISTS \|\| echo MISSING` | EXISTS |
 | MCP config | `test -f .mcp.json && echo EXISTS \|\| echo MISSING` | EXISTS |
 | Banani MCP configured (optional) | `node -e 'try{const j=require("./.mcp.json");console.log(Object.keys(j.mcpServers\|\|{}).length?"CONFIGURED":"EMPTY")}catch(e){console.log("MISSING")}'` | EMPTY by default (Banani optional — user opts in in Phase 5). CONFIGURED only if Phase 5 already ran. |
-| `DATABASE_URL` set | `cat frontend/.env.local frontend/.env 2>/dev/null \| grep -Eq '^DATABASE_URL="?postgresql://' && echo SET \|\| echo UNSET` | SET (any Postgres URL — Neon recommended, but Supabase/Railway/Render/RDS all work). The `cat \| grep` pattern tolerates either file being absent (grep alone returns exit 2 on missing-file → false UNSET). Regex accepts both quoted `DATABASE_URL="postgresql://…"` (`.env.example` style) and unquoted `DATABASE_URL=postgresql://…`. |
+| `DATABASE_URL` set | `cat frontend/.env.local frontend/.env 2>/dev/null \| grep -Eq '^DATABASE_URL="?postgresql://' && echo SET \|\| echo UNSET` | SET (Neon `-pooler` URL by default — see Phase 3; the kit is tuned for Neon, alternatives are accepted but only when the user explicitly insists). The `cat \| grep` pattern tolerates either file being absent (grep alone returns exit 2 on missing-file → false UNSET). Regex accepts both quoted `DATABASE_URL="postgresql://…"` (`.env.example` style) and unquoted. |
 
 For Claude Code skills, check the system-reminder context loaded at session start — these 3 skill names must appear in the active skills list:
 - `superpowers:*` (any — e.g. `superpowers:using-superpowers`)

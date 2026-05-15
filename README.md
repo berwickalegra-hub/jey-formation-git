@@ -6,13 +6,13 @@ Voir [STATUS.md](STATUS.md) pour l'historique de migration.
 
 ## Workflow débutant (vibe coding)
 
-**Une seule commande pour démarrer.** Ouvre ce projet dans Claude Code et tape :
+**Un seul point d'entrée.** Ouvre ce projet dans Claude Code et tape :
 
 ```
 /setup-kit
 ```
 
-`/setup-kit` est une skill bundlée dans ce repo. Elle audite ton environnement (Node, pnpm, gh CLI), te fait créer un Neon Postgres gratuit (la **seule** dépendance obligatoire), génère les secrets et lance `pnpm install` + `pnpm dev`.
+`/setup-kit` est une skill bundlée dans ce repo. Elle te guide de bout en bout : audit de ton environnement (Node, pnpm, gh CLI), installation des 2 plugins Claude Code manquants (superpowers + context-mode — paste-ready), création du compte Neon Postgres gratuit (la **seule** dépendance obligatoire), génération des secrets, `pnpm install`, migrations Prisma. Compte ~5-10 min, principalement à attendre les installs.
 
 Une fois `/setup-kit` terminé : **décris à Claude ce que tu veux construire**. Les 40 routes API (auth, paiements, admin, webhooks, cron, uploads) sont déjà câblées — tu n'as qu'à parler de ton produit, pas du plumbing. Si tu as un design Banani, dis « reproduis ces écrans-là » ; sinon, Claude propose une UI à partir de ta description.
 
@@ -25,15 +25,15 @@ Pré-requis avant de taper `/setup-kit` : avoir **Claude Code** installé (CLI o
 Le starter est **cloud-only par design** — aucun conteneur local, aucun daemon à installer. Tu as besoin d'une base Postgres (l'offre gratuite de [Neon](https://neon.tech) est le choix canonique) et c'est tout.
 
 ```bash
-gh repo create my-project --template=faratasn-pixel/izikit --private --clone
+gh repo clone faratasn-pixel/izikit my-project   # ou: git clone <fork-url> my-project
 cd my-project
-cp .env.example .env.local         # remplis DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY, CRON_SECRET au minimum
+cp .env.example frontend/.env.local              # remplis DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY, CRON_SECRET au minimum
 pnpm install
-pnpm db:migrate:deploy             # applique les migrations versionnées sur ta DB Neon
-pnpm dev                           # http://localhost:3000
+pnpm db:migrate:deploy                           # applique les migrations versionnées sur ta DB Neon
+pnpm dev                                         # http://localhost:3000
 # dans un autre terminal, après le premier signup :
 pnpm db:make-superadmin you@example.com
-pnpm smoke:auth                    # vérifie le happy path auth de bout en bout
+pnpm smoke:auth                                  # vérifie le happy path auth de bout en bout
 ```
 
 Pour obtenir `DATABASE_URL` + `DIRECT_URL` : crée un projet gratuit sur https://neon.tech, puis copie deux strings depuis le dashboard — la version avec **`-pooler`** dans le hostname comme `DATABASE_URL` (avec `?pgbouncer=true&connection_limit=1&pool_timeout=15&sslmode=require`) et la version sans `-pooler` comme `DIRECT_URL`. Exemples dans `.env.example`.

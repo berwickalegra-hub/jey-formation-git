@@ -20,7 +20,7 @@ export default tseslint.config(
       'examples/**',
       // Bundled reference skill — provider examples + docs, not production
       // code. Same rationale as examples/**: illustrative for forkers.
-      'izisaas mobile money skills/**',
+      '.claude/skills/izisaas-payments-handler/**',
     ],
   },
   js.configs.recommended,

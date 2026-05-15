@@ -16,9 +16,9 @@
     "db:migrate:status": "prisma migrate status",
     "db:migrate:reset": "prisma migrate reset",
     "db:studio": "prisma studio",
-    "db:make-superadmin": "tsx --env-file=.env scripts/make-superadmin.ts",
-    "seed:dev": "tsx --env-file=.env scripts/seed-dev.ts",
-    "smoke:auth": "tsx --env-file=.env.local scripts/smoke-auth.ts",
+    "db:make-superadmin": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/make-superadmin.ts",
+    "seed:dev": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/seed-dev.ts",
+    "smoke:auth": "tsx --env-file-if-exists=.env --env-file-if-exists=.env.local scripts/smoke-auth.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

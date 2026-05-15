@@ -10,7 +10,7 @@ L'objectif : **vibe coding**. Tu clones, tu plug une DB Neon, tu parles à Claud
 
 ## Étape 1 — `/setup-kit`
 
-Une seule commande. La skill [.claude/skills/setup-kit/SKILL.md](.claude/skills/setup-kit/SKILL.md) audite ton environnement (Node, pnpm, gh CLI), te fait créer un Neon Postgres gratuit (la **seule** dépendance obligatoire — le kit est cloud-only, pas de Docker), génère les secrets et lance `pnpm install` + `pnpm dev`.
+Un seul point d'entrée. La skill [.claude/skills/setup-kit/SKILL.md](.claude/skills/setup-kit/SKILL.md) audite ton environnement (Node, pnpm, gh CLI), te fait installer 2 plugins Claude Code (superpowers + context-mode — paste-ready), créer un Neon Postgres gratuit (la **seule** dépendance obligatoire — le kit est cloud-only, pas de Docker), génère les secrets, lance `pnpm install` + applique les migrations Prisma. Puis te demande d'ouvrir un second terminal pour `pnpm dev`.
 
 Sortie : `pnpm dev` boote vert, `pnpm smoke:auth` passe.
 

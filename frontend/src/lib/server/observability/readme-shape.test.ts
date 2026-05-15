@@ -29,7 +29,7 @@ describe('README.md doc tripwire (DOC-02) — current-state assertions', () => {
 
   it('contains the quickstart command sequence (.env.example, install, dev)', () => {
     const content = readFileSync(README_PATH, 'utf8');
-    expect(content).toMatch(/cp \.env\.example \.env(\.local)?/);
+    expect(content).toMatch(/cp \.env\.example (frontend\/)?\.env(\.local)?/);
     expect(content).toMatch(/pnpm install/);
     expect(content).toMatch(/pnpm dev/);
   });

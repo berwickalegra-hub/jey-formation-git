@@ -100,21 +100,19 @@ For each MISSING item, take the action below. **NEVER skip a missing one silentl
 
 After each install, **re-run the matching probe** to confirm. If install fails, do not proceed — explique l'erreur en français simple et propose **une seule** alternative.
 
-### Phase 2 — Skills Claude Code (3 skills, paste-required)
+### Phase 2 — Plugins Claude Code (2 plugins, paste-required)
 
-Les 3 skills utilisent des commandes `/plugin` (built-ins du harness Claude Code). **L'IA ne peut PAS taper ses propres slash commands.** Affiche-les comme bloc à copier-coller :
+`ui-ux-pro-max` est **déjà bundlé** dans le repo (`.claude/skills/ui-ux-pro-max/`) — Claude Code le charge automatiquement à l'ouverture, rien à installer. Restent 2 plugins externes à installer via `/plugin` (slash commands built-in que **l'IA ne peut PAS taper elle-même**). Affiche le bloc à copier-coller :
 
 ```
-Copie-colle ces 5 commandes une par une dans Claude Code (Entrée entre chaque) :
+Copie-colle ces 3 commandes une par une dans Claude Code (Entrée entre chaque) :
 
 /plugin install superpowers@claude-plugins-official
-/plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill
-/plugin install ui-ux-pro-max@ui-ux-pro-max-skill
 /plugin marketplace add mksglu/context-mode
 /plugin install context-mode@context-mode
 ```
 
-Une fois confirmé : « Redémarre Claude Code (les skills se chargent au démarrage de la session) puis relance `/setup-kit` pour vérifier. »
+Une fois confirmé : « Redémarre Claude Code (les plugins se chargent au démarrage de la session) puis relance `/setup-kit` pour vérifier. »
 
 > **GSD intentionnellement omis ici.** GSD est un workflow procédural (~30 slash commands, plans/phases/commits atomiques) qui sert vraiment quand le projet devient gros. Pour un premier MVP en vibe coding, c'est de la cérémonie. On le surface en Phase 7 quand le user a terminé sa première feature, pas avant.
 
@@ -194,9 +192,7 @@ Si tout vert : 🎉 imprime un récap félicitations + le hand-off vibe coding :
 >
 > *Si tu as connecté Banani en Phase 5 : sélectionne tes écrans et dis "reproduis ces écrans-là" — le skill `banani-design-implementation` prendra le relais.*
 >
-> *Pour déployer plus tard sur Vercel : dis-moi "déploie sur Vercel" quand tu es prêt. Voir [WORKFLOW.md](../../../WORKFLOW.md).*
-
-**Level up (pas obligatoire).** Quand le projet devient gros (multi-sessions, plusieurs features, dette technique), GSD (`npx get-shit-done-cc@latest`) ajoute un workflow par phases avec commits atomiques. Surface-le seulement si l'user demande à structurer son travail — pas par défaut.
+> *Pour déployer plus tard sur Vercel : dis-moi "déploie sur Vercel" quand tu es prêt. Voir [WORKFLOW.md](../../../WORKFLOW.md) — la section « Pour aller plus loin » y mentionne aussi GSD comme level-up optionnel quand le projet devient gros.*
 
 Si quelque chose rouge : stop, colle l'output qui échoue, explique en français simple, propose un fix. **Ne dis jamais « tout est prêt »** tant que les 3 commandes ne sont pas vertes.
 

@@ -45,11 +45,11 @@ Run these probes via Bash **in parallel** and build a table.
 | Node version | `node -v 2>/dev/null \|\| echo MISSING` | starts with `v20.` or higher |
 | pnpm version | `pnpm -v 2>/dev/null \|\| echo MISSING` | starts with `9.` or higher |
 | GitHub CLI auth | `gh auth status 2>&1 \| head -1` | « Logged in to github.com » present |
-| Repo `frontend/.env.local` | `test -f frontend/.env.local && echo EXISTS \|\| echo MISSING` | EXISTS |
+| Repo env file | `(test -f frontend/.env.local && echo EXISTS_LOCAL) \|\| (test -f frontend/.env && echo EXISTS_ENV) \|\| echo MISSING` | EXISTS_LOCAL preferred, EXISTS_ENV also accepted (Next.js + Prisma read either; `.env.local` is the convention but `.env` works too) |
 | Repo `node_modules` | `test -d frontend/node_modules && echo EXISTS \|\| echo MISSING` | EXISTS |
 | MCP config | `test -f .mcp.json && echo EXISTS \|\| echo MISSING` | EXISTS |
 | Banani MCP configured (optional) | `node -e 'try{const j=require("./.mcp.json");console.log(Object.keys(j.mcpServers\|\|{}).length?"CONFIGURED":"EMPTY")}catch(e){console.log("MISSING")}'` | EMPTY by default (Banani optional — user opts in in Phase 5). CONFIGURED only if Phase 5 already ran. |
-| `DATABASE_URL` set | `grep -q '^DATABASE_URL=postgresql://' frontend/.env.local 2>/dev/null && echo SET \|\| echo UNSET` | SET (must point at Neon, see Phase 4) |
+| `DATABASE_URL` set | `grep -hq '^DATABASE_URL=postgresql://' frontend/.env.local frontend/.env 2>/dev/null && echo SET \|\| echo UNSET` | SET (must point at Neon, see Phase 4) — checks both `.env.local` and `.env` |
 
 For Claude Code skills, check the system-reminder context loaded at session start — these 3 skill names must appear in the active skills list:
 - `superpowers:*` (any — e.g. `superpowers:using-superpowers`)

@@ -125,28 +125,25 @@ All `backend/src/lib/**` → `frontend/src/lib/server/**`:
 - `frontend/src/app/api/health/route.ts` — liveness, no external calls
 - `frontend/src/app/api/readyz/route.ts` — DB + Redis probes with 1.5s timeout, 503 on failure
 
-## 🔨 TODO — remaining v1 work
+## ✅ v1 shipped
 
-The remaining work is bounded: Phase 6 (this in-flight phase — tests, scripts, Docker UAT, doc rewrites) + Phase 7 (final lint/typecheck/test gate before tagging v1).
+Phases 0 → 7 complete. 555/555 unit tests green. `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build` exits 0 from a clean clone.
 
-### Phase 6 — Tests, Scripts, Docker, Docs (in flight)
+The port from `amadou-template` (Express monorepo predecessor) to a single Next.js 16 App-Router app is done; all 40 API routes export `runtime = 'nodejs'` (CI-enforced via `runtime-enforcement.test.ts`), the 8 doc-shape tripwires lock the architectural invariants, and the kit boots with only `DATABASE_URL` + auto-generated secrets.
 
-- 7 TEST-02 gap-fill unit tests for PROTECTED libs (`crypto`, `withdrawals/lock`, `outbox/dispatcher`, `oauth/google`, `notifications/createNotification`, `admin/audit`, `payments/circuit-breaker`)
-- `frontend/scripts/smoke-auth.ts` — TEST-03 manual UAT script wired as `pnpm smoke:auth`
-- `frontend/scripts/seed-dev.ts` refactored to export `main(args, deps)` with CLI guard + companion test
-- 2 doc-tripwire tests (`claude-md-shape.test.ts`, `readme-shape.test.ts`) lock the doc audits as CI guards
-- DOCKER-01 manual UAT — `docker build -f frontend/Dockerfile -t amadou-monolith .` + `/api/health` probe
-- DOC-01 — CLAUDE.md targeted edits (3 stale forward-references replaced + 3 appendix bullets for Phase 5 surface)
-- DOC-02 — README.md full rewrite to 7-section outline (quickstart, env ref, route inventory, smoke, deploy, scope-boundary, invariants)
-- ROADMAP Phase 6 success criterion #4 docker command flag fix
+### Post-v1 simplification waves
 
-See `.planning/phases/06-tests-scripts-docker-docs/` for plans + summaries.
+Two simplification waves landed after v1 to align the kit with the "vibe coding" pitch:
+- **GSD / Banani made optional** — removed as setup-kit prereqs; the kit ships ready for "describe to Claude" out of the box. GSD surfaced only as a level-up after the first feature; Banani gated behind an `oui / non / plus tard` question in setup-kit Phase 5.
+- **Cloudflare R2 → Cloudinary** — storage layer swapped; `/api/files/[...key]` owner-gated proxy deleted (Cloudinary URLs are direct). `frontend/.env.example` Storage section updated; `FileUpload.key` column kept as-is (semantically now a Cloudinary `public_id`, no migration needed).
 
-### Phase 7 — Final pass
+Audit trail of these waves lives in `.planning/archive/` (SIMPLIFY-AUDIT, POST-SIMPLIFY-AUDIT, SIMULATION-AUDIT, AUDIT-2026-05-15).
 
-`pnpm format && pnpm lint && pnpm typecheck && pnpm test` must all exit 0 from the repo root with no suppressed errors or `any` casts. `grep -r "runtime = 'edge'" frontend/src/app/api/` returns no matches. `grep -r "express" CLAUDE.md README.md` returns no matches (doc drift fully eliminated). Tag v1 after gate passes.
+### What is no longer in scope
 
-See `.planning/phases/07-final-pass/` (created when Phase 6 completes).
+- Docker / `docker-compose` — the kit is cloud-only by design; Neon free tier replaces local Postgres in 30 seconds.
+- Vercel CLI as a prerequisite — deploys happen via `git push` → Vercel imports the repo via UI.
+- A `frontend/Dockerfile` — removed in the simplification waves.
 
 ## Critical invariants (never compromise)
 

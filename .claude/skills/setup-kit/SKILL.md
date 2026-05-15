@@ -112,7 +112,9 @@ Copie-colle ces 3 commandes une par une dans Claude Code (Entrée entre chaque) 
 /plugin install context-mode@context-mode
 ```
 
-Une fois confirmé : « Redémarre Claude Code (les plugins se chargent au démarrage de la session) puis relance `/setup-kit` pour vérifier. »
+Une fois confirmé : « **Redémarre Claude Code** pour que les plugins se chargent, puis relance `/setup-kit` pour vérifier.
+> - Extension VS Code / Antigravity : `Cmd+Shift+P` (macOS) ou `Ctrl+Shift+P` (Win/Linux) → tape `Developer: Reload Window` → Entrée.
+> - CLI : `Ctrl+C` pour quitter, puis relance `claude` dans le terminal. »
 
 > **GSD intentionnellement omis ici.** GSD est un workflow procédural (~30 slash commands, plans/phases/commits atomiques) qui sert vraiment quand le projet devient gros. Pour un premier MVP en vibe coding, c'est de la cérémonie. On le surface en Phase 7 quand le user a terminé sa première feature, pas avant.
 
@@ -151,7 +153,7 @@ Stop si une étape échoue. Lis l'erreur, explique en français simple, propose 
   - Demande : *« Colle ici ta clé de connexion MCP Banani (ou la commande/URL que Banani te donne pour se connecter en MCP). »*
   - Une fois collée, l'IA met à jour `.mcp.json` à la racine du repo avec la config exacte fournie par l'user (commande + args, ou URL HTTP/SSE — selon ce que Banani lui donne). Ne pas inventer de format : utiliser tel quel ce que l'user colle.
   - Si l'user colle juste une URL : intégrer comme `{ "banani": { "url": "<url>" } }`. Si l'user colle une commande complète : reproduire `command` + `args`. En cas de doute, demande confirmation avant d'écrire.
-  - Puis : *« Redémarre Claude Code pour que le MCP soit chargé. Au prochain chat, sélectionne tes écrans dans Banani et dis "reproduis ces écrans-là" — le skill `banani-design-implementation` prendra le relais (pixel-perfect 1:1). »*
+  - Puis : *« **Redémarre Claude Code** pour que le MCP soit chargé (extension VS Code / Antigravity : `Cmd+Shift+P` → `Developer: Reload Window` ; CLI : `Ctrl+C` puis relance `claude`). Au prochain chat, sélectionne tes écrans dans Banani et dis "reproduis ces écrans-là" — le skill `banani-design-implementation` prendra le relais (pixel-perfect 1:1). »*
 
 ### Phase 6 — Comptes optionnels (skip-friendly)
 
@@ -205,7 +207,7 @@ Si quelque chose rouge : stop, colle l'output qui échoue, explique en français
 | `pnpm db:migrate:deploy` échoue avec « prepared statement does not exist » | L'user a mis l'URL pooler dans `DIRECT_URL` au lieu de la non-pooled | Re-vérifier que `DIRECT_URL` n'a PAS `-pooler` dans le hostname |
 | `pnpm dev` démarre mais `/api/auth/signup` renvoie 500 | `JWT_SECRET` / `ENCRYPTION_KEY` manquants ou trop courts (< 32 chars) | Re-run Phase 4 step 2 (génération de secrets) |
 | User dit « les commandes `/plugin` ne marchent pas » | Pas dans Claude Code ou marketplace pas accessible | Vérifier qu'il est dans le chat Claude Code (pas dans le terminal shell) |
-| User dit « après `/plugin install` rien ne change » | Skill chargé au prochain démarrage de session | Demande à l'user de redémarrer Claude Code |
+| User dit « après `/plugin install` rien ne change » | Skill chargé au prochain démarrage de session | Demande à l'user de redémarrer Claude Code — extension VS Code / Antigravity : `Cmd+Shift+P` → `Developer: Reload Window` ; CLI : `Ctrl+C` puis relance `claude` |
 | User demande « pourquoi pas de Docker ? » | Habitude des autres starters | Réponds : « Ce kit est cloud-only par design — Neon free tier remplace Postgres local en 30 sec, et tu skip 2 Go de Docker Desktop. » |
 
 ## Anti-patterns — ne fais JAMAIS

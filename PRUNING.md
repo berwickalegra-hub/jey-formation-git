@@ -1,6 +1,6 @@
 # Pruning protocol — how to safely remove an optional feature
 
-When the user says *"I don't need feature X"* (or `/import-banani` flags X as PRUNABLE), an AI agent must follow this protocol **EXACTLY**. Naive deletion based only on the `owns` field of [.planning/features.json](.planning/features.json) WILL break the build — the manifest's `cross_dependencies`, `surgical_edits`, `cron_entries`, `prisma_user_relations`, `outbox_event_kinds`, and `tripwires_to_update` fields exist precisely to prevent that.
+When the user says *"I don't need feature X"*, an AI agent must follow this protocol **EXACTLY**. Naive deletion based only on the `owns` field of [.planning/features.json](.planning/features.json) WILL break the build — the manifest's `cross_dependencies`, `surgical_edits`, `cron_entries`, `prisma_user_relations`, `outbox_event_kinds`, and `tripwires_to_update` fields exist precisely to prevent that.
 
 This file is referenced from [CLAUDE.md](CLAUDE.md) — every Claude Code session loads CLAUDE.md, which points here when a prune is requested.
 

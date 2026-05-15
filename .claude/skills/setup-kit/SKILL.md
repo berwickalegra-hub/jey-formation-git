@@ -1,6 +1,6 @@
 ---
 name: setup-kit
-description: Use when the user wants to bootstrap their dev environment for this Next.js starter from zero. Triggers — "/setup-kit", "je viens d'installer Claude Code", "je débute", "qu'est-ce que je dois installer", "setup my environment", "I just cloned the repo, what now?", "help me start", "I'm a beginner". The kit is cloud-only — there is no Docker, no local Postgres, no MinIO, no Mailpit. Every user plugs a Postgres connection string (Neon recommended for the free tier, but Supabase / Railway / Render / RDS / self-hosted all work) into frontend/.env.local, and runs `pnpm dev`. The skill audits Claude Code (CLI or VS Code/Cursor/Windsurf/Antigravity extension) / Git / Node / pnpm / gh CLI / 2 plugins to install (superpowers, context-mode — `ui-ux-pro-max` is bundled in the repo) / env vars, blocks ZIP-download cases (no .git dir), auto-installs what is automatable via Bash (pnpm via Corepack, secret generation), and surfaces UI-clickable + slash-command paths for the plugins. Banani is OPTIONAL (skill asks oui/non/plus tard in Phase 5). GSD is NOT in prereqs — surfaced as level-up after the first feature, not by default. No Vercel CLI required — deploys happen via GitHub push. Beginner-friendly — assumes zero prior knowledge, explains each step, stops at every human gate with clear instructions. The pitch is **vibe coding**: clone, plug Postgres, talk to Claude, ship.
+description: Use when the user wants to bootstrap their dev environment for this Next.js starter from zero. Triggers — "/setup-kit", "je viens d'installer Claude Code", "je débute", "qu'est-ce que je dois installer", "setup my environment", "I just cloned the repo, what now?", "help me start", "I'm a beginner". The kit is cloud-only — there is no Docker, no local Postgres, no MinIO, no Mailpit. **Neon is the default Postgres provider** — the kit is tuned for its serverless behavior (webhook handler outbox avoids the 2s tx ceiling, `/forgot-password` timing-floor calibrated for Neon-pooler latency, `.env.example` tripwire locks the format). Alternatives (Supabase / Railway / Render / RDS) work but require user-side tuning — don't suggest them unless the user explicitly asks. Every user plugs the Neon connection strings into frontend/.env.local, then runs `pnpm dev`. The skill audits Claude Code (CLI or VS Code/Cursor/Windsurf/Antigravity extension) / Git / Node / pnpm / gh CLI / 2 plugins to install (superpowers, context-mode — `ui-ux-pro-max` is bundled in the repo) / env vars, blocks ZIP-download cases (no .git dir), auto-installs what is automatable via Bash (pnpm via Corepack, secret generation), and surfaces UI-clickable + slash-command paths for the plugins. Banani is OPTIONAL (skill asks oui/non/plus tard in Phase 5). GSD is NOT in prereqs — surfaced as level-up after the first feature, not by default. No Vercel CLI required — deploys happen via GitHub push. Beginner-friendly — assumes zero prior knowledge, explains each step, stops at every human gate with clear instructions. The pitch is **vibe coding**: clone, plug Neon, talk to Claude, ship.
 ---
 
 # Skill — setup-kit
@@ -9,7 +9,7 @@ description: Use when the user wants to bootstrap their dev environment for this
 
 Take a brand-new user from **« Claude Code just installed, repo just cloned »** to **« `pnpm dev` boots green, `pnpm smoke:auth` passes »** in 5-10 minutes, with maximum hand-holding and minimum hidden assumptions.
 
-The kit is **cloud-only by design**. No Docker. No local Postgres. No MinIO. No Mailpit. The only mandatory dependency is a Postgres database — **Neon** is recommended (free tier, 30 sec to provision, native pooler), but **Supabase / Railway / Render / AWS RDS / self-hosted** all work (the kit only needs Prisma + standard Postgres). The 5 optional providers (Resend / Cloudinary / Bictorys / Google OAuth / Sentry / Upstash) are env-gated and inert when absent.
+The kit is **cloud-only by design**. No Docker. No local Postgres. No MinIO. No Mailpit. The only mandatory dependency is a Postgres database — **Neon is the default provider** and the kit is **tuned for Neon's serverless behavior**: the webhook handler offloads side-effects to the outbox to fit Neon's 2s transaction ceiling, `/forgot-password` calibrates its timing-attack floor at 350ms based on Neon-pooler latency, and the `env-shape.test.ts` tripwire locks `.env.example` to the Neon `-pooler` hostname format. Alternatives (Supabase / Railway / Render / RDS / self-hosted) work — the SQL is standard — but **require user-side tuning** (timing floor, connection params); only propose them if the user explicitly insists. The 5 optional providers (Resend / Cloudinary / Bictorys / Google OAuth / Sentry / Upstash) are env-gated and inert when absent.
 
 This skill exists because [WORKFLOW.md](../../../WORKFLOW.md) lists ~8 pre-requisites (Claude Code itself, Node, pnpm, gh CLI, 4 Claude Code skills, Neon account, Banani account, .mcp.json edit, .env.local creation, secret generation) and a beginner cannot reliably execute that list without guidance. Deploys go through GitHub push (Vercel imports the repo), so no Vercel CLI install is required locally.
 
@@ -139,16 +139,18 @@ Une fois confirmé (UI ou CLI) : « **Redémarre Claude Code** pour que les plug
 
 > **GSD intentionnellement omis ici.** GSD est un workflow procédural (~30 slash commands, plans/phases/commits atomiques) qui sert vraiment quand le projet devient gros. Pour un premier MVP en vibe coding, c'est de la cérémonie. On le surface en Phase 7 quand le user a terminé sa première feature, pas avant.
 
-### Phase 3 — Compte Postgres (la SEULE dépendance obligatoire)
+### Phase 3 — Compte Neon Postgres (la SEULE dépendance obligatoire)
 
-Le kit est **cloud-only** — pas de Postgres local. **Neon est recommandé** (free tier généreux, 30 sec à provisionner, supporte natif `-pooler` + `DIRECT_URL`), mais n'importe quel Postgres marche : **Supabase**, **Railway**, **Render**, **AWS RDS**, **Postgres self-hosted**. Le kit ne dépend que de Prisma + Postgres standard, pas d'extensions Neon-spécifiques.
+Le kit est **cloud-only** — pas de Postgres local. **Neon est le provider par défaut**, et le kit est **tuned pour son comportement serverless** :
 
-**Demande à l'user** : *« Tu as déjà un Postgres ? oui (Supabase/Railway/Render/RDS/autre) / non (créer un Neon) »*
+- Le webhook handler évite le plafond 2s de transaction de Neon en sortant les side-effects (emails, notifications) vers l'outbox post-commit.
+- La mitigation timing-attack de `/forgot-password` calibre son floor à **350ms** sur la base de la latence Neon-pooler — override via `AUTH_FORGOT_TARGET_LATENCY_MS` si tu tournes sur un Postgres plus lent.
+- Le tripwire `env-shape.test.ts` **verrouille** `.env.example` au format Neon `-pooler` (CI bloque tout changement).
+- Les query params `pgbouncer=true&connection_limit=1&pool_timeout=15&sslmode=require` sont calibrés pour Neon serverless (cold-start lent, connection limits agressives).
 
-- **non** → suis le chemin Neon ci-dessous (recommandé, le plus rapide).
-- **oui** → l'user te colle ses 2 URLs (pooled + direct si l'hébergeur les distingue, sinon la même URL deux fois). Saute aux étapes 3-4.
+**Pousse l'user vers Neon par défaut.** Si l'user demande explicitement un autre provider, c'est supporté (voir « Alternatives » plus bas) mais préviens des caveats.
 
-**Chemin Neon (cas par défaut)** :
+**Chemin Neon (cas par défaut, 95% des users)** :
 
 1. **Inscription Neon** — « Va sur https://neon.tech, inscription gratuite (Google / GitHub OK). 30 secondes. Confirme quand c'est fait. »
 2. **Création projet** — « Dans le dashboard Neon, clique "New Project". Nomme-le comme tu veux. Sélectionne la région la plus proche. Confirme quand c'est créé. »
@@ -158,10 +160,15 @@ Le kit est **cloud-only** — pas de Postgres local. **Neon est recommandé** (f
    - Colle-les ici dans le chat (l'IA va les écrire dans `.env.local` pour toi). »
 4. **AI écrit `.env.local`** — `cp .env.example frontend/.env.local` puis `Edit` pour insérer les deux URLs aux bonnes lignes.
 
-**Mapping pour autres hébergeurs** (si l'user a choisi *« oui, déjà un Postgres »*) :
-- **Supabase** : Settings → Database → *Connection string* → URL "Transaction pooler" (port 6543) pour `DATABASE_URL`, URL "Session pooler" ou direct (port 5432) pour `DIRECT_URL`.
-- **Railway / Render** : copie la même URL Postgres deux fois (pas de pooler séparé) — fonctionne mais perfs moins bonnes que Neon en serverless.
-- **RDS / self-hosted** : `DATABASE_URL=postgresql://user:pass@host:5432/db?sslmode=require` deux fois. Ajoute un pooler (PgBouncer) plus tard si tu scale.
+**Alternatives** (l'user insiste pour ne pas utiliser Neon — par défaut on ne propose PAS, on attend qu'il demande) :
+
+> ⚠️ Avant de pousser une alternative, préviens : *« Le kit est tuned pour Neon — sur un autre Postgres, le webhook handler reste safe (l'outbox post-commit évite le plafond 2s), mais tu devras peut-être bumper `AUTH_FORGOT_TARGET_LATENCY_MS` si la latence DB dépasse ~150ms. Si tu n'as pas de raison forte (équipe déjà sur Supabase, contraintes data residency…), reste sur Neon. »*
+
+- **Supabase** : Settings → Database → *Connection string*. `DATABASE_URL` = URL "Transaction pooler" (port `6543`) ; `DIRECT_URL` = URL "Session pooler" ou direct connection (port `5432`). Drop-in compatible avec les query params Neon (même PgBouncer transaction-mode).
+- **Railway / Render** : pas de pooler natif. `DATABASE_URL` = URL Postgres standard, **retirer `pgbouncer=true`** et bumper `connection_limit` à 10. `DIRECT_URL` = même URL.
+- **RDS / self-hosted** : `postgresql://user:pass@host:5432/db?sslmode=require` deux fois (sans `pgbouncer=true`). Ajoute un PgBouncer en façade plus tard si tu scale.
+
+> Note: le tripwire `frontend/src/lib/server/observability/env-shape.test.ts` verrouille `.env.example` au format Neon `-pooler`. C'est volontaire — il garantit que les forks par défaut restent sur Neon. Les users qui swap pour Supabase modifient leur `.env.local` (gitignored), pas `.env.example`.
 
 ### Phase 4 — Install du repo + secrets
 

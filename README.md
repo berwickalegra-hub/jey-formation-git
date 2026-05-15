@@ -22,7 +22,7 @@ Pré-requis avant de taper `/setup-kit` : avoir **Claude Code** installé (CLI o
 
 ## Quickstart
 
-Le starter est **cloud-only par design** — aucun conteneur local, aucun daemon à installer. Tu as besoin d'une base Postgres (l'offre gratuite de [Neon](https://neon.tech) est le choix canonique) et c'est tout.
+Le starter est **cloud-only par design** — aucun conteneur local, aucun daemon à installer. **[Neon](https://neon.tech) est le provider Postgres par défaut** : le kit est **tuned pour son comportement serverless** (le handler de webhooks évite le plafond de tx 2s en sortant les side-effects vers l'outbox, la mitigation timing-attack de `/forgot-password` calibre son floor à 350ms sur la base de la latence Neon-pooler, et un tripwire CI verrouille `.env.example` au format Neon). D'autres Postgres (Supabase, Railway, Render, RDS, self-hosted) fonctionnent — le SQL est standard — mais demandent du tuning user-side ; reste sur Neon sauf raison forte (équipe déjà sur Supabase, data residency…).
 
 ```bash
 gh repo clone faratasn-pixel/izikit my-project   # ou: git clone <fork-url> my-project

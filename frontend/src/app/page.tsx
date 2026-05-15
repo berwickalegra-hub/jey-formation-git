@@ -81,12 +81,13 @@ export default function Home() {
         <pre className="mt-3 overflow-x-auto rounded bg-white p-3 text-sm">/setup-kit</pre>
         <p className="mt-3 text-sm text-emerald-900">
           The <code>/setup-kit</code> skill audits your environment, installs what it can (pnpm via
-          Corepack, secrets), and walks you through plugging a Postgres connection string — Neon
-          recommended for the free tier, but Supabase / Railway / Render / RDS / self-hosted all
-          work. Then just <strong>describe what you want to build to Claude</strong> (in French or
-          English). The 40 routes (auth, payments, admin, webhooks, cron, uploads) are already wired
-          — you only talk about your product, not the plumbing. See <code>WORKFLOW.md</code> for the
-          full vibe-coding flow.
+          Corepack, secrets), and walks you through plugging a <strong>Neon Postgres</strong>{' '}
+          connection string — the kit is tuned for Neon&rsquo;s serverless behavior (other Postgres
+          providers work but need user-side tuning). Then just{' '}
+          <strong>describe what you want to build to Claude</strong> (in French or English). The 40
+          routes (auth, payments, admin, webhooks, cron, uploads) are already wired — you only talk
+          about your product, not the plumbing. See <code>WORKFLOW.md</code> for the full
+          vibe-coding flow.
         </p>
       </section>
 

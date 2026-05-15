@@ -110,19 +110,30 @@ For each MISSING item, take the action below. **NEVER skip a missing one silentl
 
 After each install, **re-run the matching probe** to confirm. If install fails, do not proceed — explique l'erreur en français simple et propose **une seule** alternative.
 
-### Phase 2 — Plugins Claude Code (2 plugins, paste-required)
+### Phase 2 — Plugins Claude Code (2 plugins à activer)
 
-`ui-ux-pro-max` est **déjà bundlé** dans le repo (`.claude/skills/ui-ux-pro-max/`) — Claude Code le charge automatiquement à l'ouverture, rien à installer. Restent 2 plugins externes à installer via `/plugin` (slash commands built-in que **l'IA ne peut PAS taper elle-même**). Affiche le bloc à copier-coller :
+`ui-ux-pro-max` est **déjà bundlé** dans le repo (`.claude/skills/ui-ux-pro-max/`) — Claude Code le charge automatiquement à l'ouverture, rien à installer. Restent 2 plugins externes à activer : **superpowers** et **context-mode**.
+
+**Méthode UI (recommandée — extension VS Code / Cursor / Windsurf / Antigravity)** :
+
+> 1. Ouvre le panneau Claude Code (clique sur l'icône Claude dans la barre latérale de VS Code).
+> 2. Dans la zone de chat, tape `/` pour ouvrir la palette de commandes Claude.
+> 3. Choisis **Manage plugins** (ou « Plugin marketplace » selon la version).
+> 4. Recherche **« superpowers »** → clique **Install** (ou « Activate »).
+> 5. Recherche **« context-mode »** → clique **Install**.
+> 6. Confirme-moi quand les 2 sont installés.
+
+**Méthode CLI (fallback — si tu lances Claude Code en CLI dans le terminal)** :
+
+Les 2 plugins s'installent via slash commands que **l'IA ne peut PAS taper elle-même**. Copie-colle ces 3 lignes une par une dans le chat (Entrée entre chaque) :
 
 ```
-Copie-colle ces 3 commandes une par une dans Claude Code (Entrée entre chaque) :
-
 /plugin install superpowers@claude-plugins-official
 /plugin marketplace add mksglu/context-mode
 /plugin install context-mode@context-mode
 ```
 
-Une fois confirmé : « **Redémarre Claude Code** pour que les plugins se chargent, puis relance `/setup-kit` pour vérifier.
+Une fois confirmé (UI ou CLI) : « **Redémarre Claude Code** pour que les plugins se chargent, puis relance `/setup-kit` pour vérifier.
 > - Extension VS Code / Antigravity : `Cmd+Shift+P` (macOS) ou `Ctrl+Shift+P` (Win/Linux) → tape `Developer: Reload Window` → Entrée.
 > - CLI : `Ctrl+C` pour quitter, puis relance `claude` dans le terminal. »
 

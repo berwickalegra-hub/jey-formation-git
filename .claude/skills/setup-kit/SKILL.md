@@ -187,11 +187,23 @@ Stop si une étape échoue. Lis l'erreur, explique en français simple, propose 
 - **non / plus tard** → Skip immédiatement. Dis-lui : *« Pas de souci. Tu pourras décrire ce que tu veux à Claude en français à la prochaine étape, et il construira l'UI à partir de ta description. Ouvre Banani plus tard si tu veux un design plus polish. »* Passe à Phase 6.
 - **oui** → continue ci-dessous :
   - URL : https://banani.co — **inscription gratuite, aucune clé payante.**
-  - Banani expose son MCP via une **clé de connexion** (chaîne fournie dans son UI une fois loggé — onglet « Connect to MCP » ou équivalent).
-  - Demande : *« Colle ici ta clé de connexion MCP Banani (ou la commande/URL que Banani te donne pour se connecter en MCP). »*
-  - Une fois collée, l'IA met à jour `.mcp.json` à la racine du repo avec la config exacte fournie par l'user (commande + args, ou URL HTTP/SSE — selon ce que Banani lui donne). Ne pas inventer de format : utiliser tel quel ce que l'user colle.
-  - Si l'user colle juste une URL : intégrer comme `{ "banani": { "url": "<url>" } }`. Si l'user colle une commande complète : reproduire `command` + `args`. En cas de doute, demande confirmation avant d'écrire.
-  - Puis : *« **Redémarre Claude Code** pour que le MCP soit chargé (extension VS Code / Antigravity : `Cmd+Shift+P` → `Developer: Reload Window` ; CLI : `Ctrl+C` puis relance `claude`). Au prochain chat, sélectionne tes écrans dans Banani et dis "reproduis ces écrans-là" — le skill `banani-design-implementation` prendra le relais (pixel-perfect 1:1). »*
+  - Banani expose son MCP. Demande : *« Banani t'a donné quoi exactement ? Colle-le ici (commande, URL, ou bloc JSON). »*
+  - **Détecte le format collé** :
+    - **Cas A — commande `claude mcp add ...`** (le format Banani le plus courant aujourd'hui ; user-scope). Exemple : `claude mcp add --transport http banani https://app.banani.co/api/mcp/mcp --header "Authorization: Bearer bnni_XXX"`.
+      → **NE LANCE PAS la commande toi-même.** Le token est sensible et la commande écrit dans `~/.claude.json` (config user-level, hors scope du projet). Dis à l'user :
+      > *« Cette commande écrit dans ta config Claude Code user-level (`~/.claude.json`), pas dans le repo — ton token reste local à ta machine, jamais committé. Lance-la **toi-même** dans un terminal (le terminal intégré de VS Code marche très bien — `` Ctrl+` ``) :*
+      >
+      > ```bash
+      > <colle ici la commande complète que l'user t'a donnée>
+      > ```
+      >
+      > *Tu verras « Added MCP server 'banani' ». Vérifie avec `claude mcp list`. Confirme-moi quand c'est fait. »*
+    - **Cas B — bloc JSON ou URL HTTP/SSE pure** (project-scope). Exemples : `{ "banani": { "url": "https://..." } }` ou juste `https://app.banani.co/api/mcp/mcp`.
+      → L'IA met à jour `.mcp.json` à la racine du repo. Si juste une URL : `{ "banani": { "url": "<url>" } }`. Si bloc complet : reproduire tel quel. **Important** : ne mets PAS un Bearer token en clair dans `.mcp.json` — il serait committé. Si l'user veut un token, route-le vers le Cas A (commande `claude mcp add`, user-scope).
+    - **En cas de doute** : demande confirmation avant d'écrire/exécuter.
+  - Puis (dans les 2 cas) : *« **Redémarre Claude Code** pour que le MCP soit chargé (extension VS Code / Cursor / Windsurf / Antigravity : `Cmd+Shift+P` → `Developer: Reload Window` ; CLI : `Ctrl+C` puis relance `claude`). Au prochain chat, sélectionne tes écrans dans Banani et dis "reproduis ces écrans-là" — le skill `banani-design-implementation` prendra le relais (pixel-perfect 1:1). »*
+
+> **Pourquoi l'IA ne lance pas `claude mcp add` directement** : (1) le token Bearer transiterait dans le contexte LLM ; (2) la commande écrit dans `~/.claude.json` (user-level), hors scope du projet ; (3) le scope user est en fait souhaitable — une fois enregistré, le MCP marche pour TOUS tes projets Claude Code sans avoir à recommencer.
 
 ### Phase 6 — Comptes optionnels (skip-friendly)
 

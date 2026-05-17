@@ -12,6 +12,10 @@ export interface User {
   emailVerifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** false when the account was created via OAuth and never set a password. */
+  hasPassword: boolean;
+  /** Provider names already linked, e.g. ['google']. Empty for pure email/password accounts. */
+  linkedProviders: string[];
 }
 
 interface AuthContextValue {

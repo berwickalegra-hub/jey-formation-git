@@ -56,9 +56,19 @@ vi.mock('@/lib/server/auth/hibp', () => ({
   isPwned: vi.fn().mockResolvedValue(false),
 }));
 
+// Mock lockout primitives so tests can drive isLockedOut / recordFailure
+// directly instead of relying on the in-memory-Map fallback side-effects
+// across tests (M1 audit fix — direct coverage for the new lockout branch).
+vi.mock('@/lib/server/auth/lockout', () => ({
+  isLockedOut: vi.fn().mockResolvedValue(false),
+  recordFailure: vi.fn().mockResolvedValue({ count: 1, locked: false }),
+  recordSuccess: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Now safe to import what we need.
 import { isBanned } from '@/lib/server/auth/banned-passwords';
 import { isPwned } from '@/lib/server/auth/hibp';
+import { isLockedOut, recordFailure } from '@/lib/server/auth/lockout';
 import {
   COOKIE_NAME,
   REFRESH_COOKIE_NAME,
@@ -112,9 +122,13 @@ let dbHash: string;
 
 const isBannedMock = vi.mocked(isBanned);
 const isPwnedMock = vi.mocked(isPwned);
+const isLockedOutMock = vi.mocked(isLockedOut);
+const recordFailureMock = vi.mocked(recordFailure);
 
 beforeEach(async () => {
   __cookieStore.clear();
+  isLockedOutMock.mockReset().mockResolvedValue(false);
+  recordFailureMock.mockReset().mockResolvedValue({ count: 1, locked: false });
   validToken = await createAccessToken({
     sub: 'user_1',
     email: 'user@example.com',
@@ -224,6 +238,53 @@ describe('PUT /api/auth/change-password (AUTH-09)', () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body).toMatchObject({ error: 'INVALID_CREDENTIALS' });
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+    // M1 audit fix — recordFailure must increment the shared lockout counter
+    // so a captured session can't brute-force currentPassword indefinitely.
+    expect(recordFailureMock).toHaveBeenCalledWith('user@example.com');
+  });
+
+  it('Test 4a — isLockedOut=true at entry returns 423 LOCKED_OUT without bcrypt (M1)', async () => {
+    isLockedOutMock.mockResolvedValueOnce(true);
+    await seedAccessCookie(validToken);
+    const req = buildRequest({
+      body: { currentPassword: 'Current-Pass-Old-2026', newPassword: 'Brand-New-Pass-2026' },
+      csrf: CSRF_TOKEN,
+      csrfCookieValue: CSRF_TOKEN,
+    });
+
+    const res = await PUT(req);
+
+    expect(res.status).toBe(423);
+    const body = await res.json();
+    expect(body).toMatchObject({ error: 'LOCKED_OUT' });
+    // The lockout short-circuits BEFORE bcrypt + DB write. requireAuth's own
+    // tokenVersion lookup still runs (1 findUnique) — that's by design.
+    expect(prismaMock.user.update).not.toHaveBeenCalled();
+    expect(recordFailureMock).not.toHaveBeenCalled();
+  });
+
+  it('Test 4b — recordFailure returns locked=true → 423 LOCKED_OUT (threshold-breach attempt, M1)', async () => {
+    // This is the attempt that flips the lockout flag: bcrypt runs (returns
+    // false), recordFailure increments to count===threshold and returns
+    // { locked: true }. Mirrors login's Pattern 9 step 6 lockout flip.
+    recordFailureMock.mockResolvedValueOnce({ count: 5, locked: true });
+    await seedAccessCookie(validToken);
+    const req = buildRequest({
+      body: {
+        currentPassword: 'totally-wrong-password',
+        newPassword: 'Brand-New-Pass-2026',
+      },
+      csrf: CSRF_TOKEN,
+      csrfCookieValue: CSRF_TOKEN,
+    });
+
+    const res = await PUT(req);
+
+    expect(res.status).toBe(423);
+    const body = await res.json();
+    expect(body).toMatchObject({ error: 'LOCKED_OUT' });
+    expect(recordFailureMock).toHaveBeenCalledWith('user@example.com');
     expect(prismaMock.user.update).not.toHaveBeenCalled();
   });
 

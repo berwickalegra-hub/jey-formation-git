@@ -7,15 +7,23 @@
 // Order of operations is load-bearing:
 //   1. verifyCsrf      — cheap, no DB hit (D-02)
 //   2. requireAuth     — DB hit + tokenVersion check (D-03)
-//   3. Zod parse       — body shape (D-04, VALIDATION_FAILED on fail)
-//   4. Password policy — length, banned, optional HIBP (D-10/D-12/D-13)
+//   3. isLockedOut     — early-out before bcrypt if the email is locked.
+//                        Shares the `auth:lockout-count:${email}` namespace
+//                        with login so a captured session can't brute-force
+//                        currentPassword indefinitely (M1 audit fix).
+//                        We have `auth.user.email` from step 2, so this is
+//                        cheap (1 Redis read) and runs BEFORE body parse.
+//   4. Zod parse       — body shape (D-04, VALIDATION_FAILED on fail)
+//   5. Password policy — length, banned, optional HIBP (D-10/D-12/D-13)
 //                        BEFORE the DB lookup so weak-password attempts
 //                        don't even hit prisma
-//   5. user.findUnique — load passwordHash to verify currentPassword
-//   6. verifyPassword  — bcrypt compare against currentPassword
-//   7. hashPassword    — bcrypt hash newPassword (cost 12)
-//   8. user.update     — atomic single-row write of passwordHash + tokenVersion
-//   9. setAuthCookies + setCsrfCookie with the BUMPED tokenVersion (Pitfall 9)
+//   6. user.findUnique — load passwordHash to verify currentPassword
+//   7. verifyPassword  — bcrypt compare against currentPassword
+//                        on fail: recordFailure(email) → 423 LOCKED_OUT or
+//                        400 INVALID_CREDENTIALS (mirrors login Pattern 9 step 6)
+//   8. hashPassword    — bcrypt hash newPassword (cost 12)
+//   9. user.update     — atomic single-row write of passwordHash + tokenVersion
+//  10. setAuthCookies + setCsrfCookie with the BUMPED tokenVersion (Pitfall 9)
 import { z } from 'zod';
 import { NextResponse, type NextRequest } from 'next/server';
 import {
@@ -30,7 +38,7 @@ import {
 import { requireAuth } from '@/lib/server/middleware';
 import { isBanned } from '@/lib/server/auth/banned-passwords';
 import { isPwned } from '@/lib/server/auth/hibp';
-import { recordSuccess } from '@/lib/server/auth/lockout';
+import { isLockedOut, recordFailure, recordSuccess } from '@/lib/server/auth/lockout';
 import { prisma } from '@/lib/server/prisma';
 import { makeRequestContext, withRequestContext } from '@/lib/server/observability/request-context';
 import { log } from '@/lib/server/observability/log';
@@ -72,7 +80,13 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
       return auth;
     }
 
-    // 3. Body validation.
+    // 3. Lockout flag check.
+    if (await isLockedOut(auth.user.email)) {
+      log.warn('change-password blocked by lockout', { userId: auth.user.sub });
+      return jsonError('LOCKED_OUT', 423, ctx.requestId, 'Account temporarily locked.');
+    }
+
+    // 4. Body validation.
     let body: z.infer<typeof Body>;
     try {
       const json = await req.json();
@@ -81,7 +95,7 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
       return jsonError('VALIDATION_FAILED', 400, ctx.requestId, 'Invalid request body');
     }
 
-    // 4. Password policy — length, banned, optional HIBP. All BEFORE DB read
+    // 5. Password policy — length, banned, optional HIBP. All BEFORE DB read
     //    so weak-password probing can't time-attack the user lookup.
     const minLength = Number(process.env.AUTH_PASSWORD_MIN_LENGTH ?? 10);
     if (body.newPassword.length < minLength) {
@@ -109,7 +123,7 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // 5. Load user (needs passwordHash + current tokenVersion for the bump).
+    // 6. Load user (needs passwordHash + current tokenVersion for the bump).
     //    OAuth-only accounts have passwordHash=null; we treat that as
     //    INVALID_CREDENTIALS rather than leaking the OAuth-only state.
     const user = await prisma.user.findUnique({
@@ -125,13 +139,20 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
       return jsonError('INVALID_CREDENTIALS', 400, ctx.requestId, 'Current password is incorrect');
     }
 
-    // 6. Verify currentPassword.
+    // 7. Verify currentPassword. On fail, recordFailure(email) increments the
+    //    shared lockout counter and returns 423 LOCKED_OUT on the
+    //    threshold-breach attempt (mirrors login).
     const ok = await verifyPassword(body.currentPassword, user.passwordHash);
     if (!ok) {
+      const r = await recordFailure(user.email);
+      if (r.locked) {
+        log.warn('change-password lockout triggered', { userId: user.id });
+        return jsonError('LOCKED_OUT', 423, ctx.requestId, 'Account temporarily locked.');
+      }
       return jsonError('INVALID_CREDENTIALS', 400, ctx.requestId, 'Current password is incorrect');
     }
 
-    // 7+8. Hash new password and atomically update passwordHash + tokenVersion.
+    // 8+9. Hash new password and atomically update passwordHash + tokenVersion.
     //      A single user.update is atomic by Postgres semantics — no
     //      $transaction wrapper needed for a one-row write.
     const newHash = await hashPassword(body.newPassword);
@@ -151,10 +172,10 @@ export async function PUT(req: NextRequest): Promise<NextResponse> {
     // typo on the new password.
     await recordSuccess(updated.email);
 
-    // 9. Pitfall 9: mint NEW tokens with the BUMPED tokenVersion and call
-    //    setAuthCookies + setCsrfCookie so the current browser stays logged
-    //    in. Other sessions still hold the old tokenVersion and will fail on
-    //    the next requireAuth call.
+    // 10. Pitfall 9: mint NEW tokens with the BUMPED tokenVersion and call
+    //     setAuthCookies + setCsrfCookie so the current browser stays logged
+    //     in. Other sessions still hold the old tokenVersion and will fail on
+    //     the next requireAuth call.
     const access = await createAccessToken({
       sub: updated.id,
       email: updated.email,

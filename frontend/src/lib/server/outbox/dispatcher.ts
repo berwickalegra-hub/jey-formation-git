@@ -147,19 +147,22 @@ async function dispatchEvent(deps: OutboxDispatcherDeps, event: OutboxEvent): Pr
     case 'email.verification_code': {
       // Phase 1 — emitted by signup + resend-verification routes. Phase 5's
       // email-queue cron will render via verificationEmail() and call enqueue.
+      // O1 audit fix — thread `expiresAt` so the rendered TTL matches the
+      // route-side `AUTH_VERIFICATION_TTL_MIN` env (was hardcoded "15 min").
       if (!deps.emailQueue) throw new Error('email queue not configured');
       const { verificationEmail } = await import('../auth/email-templates');
-      const { to, code } = event.payload;
-      const tpl = verificationEmail({ code, email: to });
+      const { to, code, expiresAt } = event.payload;
+      const tpl = verificationEmail({ code, email: to, expiresAt });
       await deps.emailQueue.enqueue({ to, subject: tpl.subject, html: tpl.html });
       return;
     }
     case 'email.password_reset': {
       // Phase 1 — emitted by forgot-password route.
+      // O1 audit fix — thread `expiresAt` (see email.verification_code above).
       if (!deps.emailQueue) throw new Error('email queue not configured');
       const { resetPasswordEmail } = await import('../auth/email-templates');
-      const { to, code } = event.payload;
-      const tpl = resetPasswordEmail({ code, email: to });
+      const { to, code, expiresAt } = event.payload;
+      const tpl = resetPasswordEmail({ code, email: to, expiresAt });
       await deps.emailQueue.enqueue({ to, subject: tpl.subject, html: tpl.html });
       return;
     }

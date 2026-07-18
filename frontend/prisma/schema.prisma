@@ -32,7 +32,15 @@ model User {
   // (ADMIN can suspend; only SUPERADMIN can restore).
   status            String    @default("ACTIVE") // ACTIVE | SUSPENDED
   createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+
+  // Gamification — simple XP/level/streak (community platform). XP awarded
+  // by lib/server/gamification/xp.ts on post/comment/lesson-complete; level
+  // is derived from xp; streakCount bumps once per calendar day of activity.
+  xp           Int       @default(0)
+  level        Int       @default(1)
+  streakCount  Int       @default(0)
+  lastActiveAt DateTime?
+  updatedAt    DateTime  @updatedAt
 
   verificationCodes VerificationCode[]
   uploads           FileUpload[]
@@ -46,8 +54,18 @@ model User {
   // Multi-tenancy is opt-in per project: by default no resource is org-scoped.
   // Apps that need it (marketplace, B2B SaaS, classifieds) wire owner relations
   // on their domain models.
-  ownedOrganizations Organization[]      @relation("OrgOwner")
+  ownedOrganizations Organization[]       @relation("OrgOwner")
   memberships        OrganizationMember[] @relation("OrgMembership")
+
+  // Community platform — posts/comments/likes authored, lesson progress, quiz
+  // results, documents uploaded, events created (all cascade-cleaned).
+  posts          Post[]
+  comments       Comment[]
+  likes          Like[]
+  lessonProgress LessonProgress[]
+  quizResults    QuizResult[]
+  documents      Document[]
+  events         Event[]
 
   @@index([email])
   @@index([role])
@@ -95,14 +113,33 @@ model AdminAction {
 // used as a stable URL segment.
 // ───────────────────────────────────────────────────────────────────────
 model Organization {
-  id        String   @id @default(cuid())
-  slug      String   @unique
+  id        String               @id @default(cuid())
+  slug      String               @unique
   name      String
   ownerId   String
-  owner     User     @relation("OrgOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  owner     User                 @relation("OrgOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   members   OrganizationMember[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+
+  // Community platform branding + pricing — used by the "À propos" page.
+  description   String?
+  tagline       String?
+  // "À propos" presentation video — plain URL, rendered as native <video>
+  // for direct mp4/Cloudinary links or an iframe for YouTube/Vimeo.
+  introVideoUrl String?
+  coverImageUrl String?
+  logoUrl       String?
+  visibility    String  @default("PUBLIC") // PUBLIC | PRIVATE
+  priceAmount   Int? // smallest currency unit, same convention as Order.amount
+  pricePeriod   String? // e.g. "mois" | "an"
+  currency      String  @default("XOF")
+
+  courses        Course[]
+  postCategories PostCategory[]
+  posts          Post[]
+  documents      Document[]
+  events         Event[]
 
   @@index([ownerId])
 }
@@ -273,21 +310,21 @@ model WebhookLog {
 // at the call site — the schema is currency-agnostic.
 // ───────────────────────────────────────────────────────────────────────
 model Order {
-  id              String    @id @default(cuid())
-  userId          String? // nullable — guest checkout supported
-  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  amount          Int // gross amount, smallest unit
-  currency        String    @default("XOF") // ISO 4217
-  status          String    @default("PENDING") // PENDING | PAID | EXPIRED | FAILED | REFUNDED
-  customerEmail   String?
-  customerPhone   String?
-  customerName    String?
-  metadata        Json? // app-specific fields
+  id            String  @id @default(cuid())
+  userId        String? // nullable — guest checkout supported
+  user          User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  amount        Int // gross amount, smallest unit
+  currency      String  @default("XOF") // ISO 4217
+  status        String  @default("PENDING") // PENDING | PAID | EXPIRED | FAILED | REFUNDED
+  customerEmail String?
+  customerPhone String?
+  customerName  String?
+  metadata      Json? // app-specific fields
 
   // Stripe-grade idempotency. Required header on POST /api/orders; replay
   // with same value returns the original Order row instead of double-charging.
   // Nullable so existing rows pre-migration don't break the @unique constraint.
-  idempotencyKey  String?   @unique
+  idempotencyKey String? @unique
 
   // Provider reference
   provider         String // e.g. "bictorys"
@@ -311,12 +348,12 @@ model Order {
 }
 
 model Withdrawal {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user        User   @relation(fields: [userId], references: [id], onDelete: Restrict)
   amount      Int // requested amount, smallest unit
-  currency    String   @default("XOF")
-  status      String   @default("PENDING") // PENDING | PROCESSING | COMPLETED | FAILED | CANCELLED
+  currency    String @default("XOF")
+  status      String @default("PENDING") // PENDING | PROCESSING | COMPLETED | FAILED | CANCELLED
   destination Json // { method: "WAVE" | "ORANGE_MONEY" | ..., phone: "+221...", accountName?: "..." }
 
   // Provider reference
@@ -331,4 +368,200 @@ model Withdrawal {
   @@index([userId, requestedAt])
   @@index([status, requestedAt])
   @@index([provider, providerPayoutId])
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Community platform — courses, posts, documents, events.
+//
+// Built on top of the generic Organization/OrganizationMember multi-tenancy
+// primitives above: a "community" IS an Organization (branding + pricing
+// fields added there), and OrganizationMember.role (OWNER > ADMIN > MEMBER)
+// doubles as coach/moderator/member. Every model below still carries
+// organizationId even though this app runs a single community in practice —
+// a fork can re-enable multiple communities without a schema change.
+// ───────────────────────────────────────────────────────────────────────
+model Course {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  coverImageUrl  String?
+  order          Int          @default(0)
+  modules        Module[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([organizationId, order])
+}
+
+model Module {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title     String
+  order     Int      @default(0)
+  lessons   Lesson[]
+  createdAt DateTime @default(now())
+
+  @@index([courseId, order])
+}
+
+model Lesson {
+  id              String           @id @default(cuid())
+  moduleId        String
+  module          Module           @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  title           String
+  // Plain URL — native <video> for direct mp4/Cloudinary URLs, iframe for
+  // YouTube/Vimeo embeds. No dedicated video provider wired (see CLAUDE.md
+  // provider table — nothing there covers video hosting, and adding one
+  // isn't needed for a URL-based player).
+  videoUrl        String?
+  descriptionHtml String?
+  order           Int              @default(0)
+  durationSeconds Int?
+  quiz            Quiz?
+  progress        LessonProgress[]
+  comments        Comment[]
+  createdAt       DateTime         @default(now())
+
+  @@index([moduleId, order])
+}
+
+model LessonProgress {
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lessonId    String
+  lesson      Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+}
+
+// Optional per lesson — informational score only, does NOT gate the next
+// lesson (cahier des charges marks quiz-gating as optional). Kept independent
+// so "Terminée" (completion toggle) and "Quiz réussi (XX%)" stay two
+// separate, independently-settable states — matches the reference UI.
+model Quiz {
+  id        String       @id @default(cuid())
+  lessonId  String       @unique
+  lesson    Lesson       @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions Json // [{ question, choices: string[], correctIndex }]
+  results   QuizResult[]
+  createdAt DateTime     @default(now())
+}
+
+model QuizResult {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId       String
+  quiz         Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  scorePercent Int
+  passed       Boolean
+  createdAt    DateTime @default(now())
+
+  @@index([userId, quizId])
+}
+
+model PostCategory {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name           String
+  emoji          String?
+  order          Int          @default(0)
+  posts          Post[]
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, order])
+}
+
+model Post {
+  id             String        @id @default(cuid())
+  organizationId String
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User          @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  categoryId     String?
+  category       PostCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  title          String?
+  content        String
+  mediaUrl       String?
+  mediaType      String? // IMAGE | VIDEO
+  isPinned       Boolean       @default(false)
+  comments       Comment[]
+  likes          Like[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([organizationId, isPinned, createdAt])
+  @@index([categoryId])
+}
+
+// Polymorphic-ish: exactly one of postId/lessonId is set — validated at the
+// route layer (zod refine), not enforceable in Postgres without a check
+// constraint Prisma doesn't model directly.
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String?
+  post      Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  lessonId  String?
+  lesson    Lesson?  @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([postId, createdAt])
+  @@index([lessonId, createdAt])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+}
+
+model Document {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedById   String?
+  uploadedBy     User?        @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  title          String
+  description    String?
+  fileUrl        String
+  fileType       String // MIME type
+  fileSizeBytes  Int
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId, createdAt])
+}
+
+model Event {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdById     String?
+  createdBy       User?        @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  title           String
+  description     String?
+  startAt         DateTime
+  durationMinutes Int
+  isOnline        Boolean      @default(true)
+  meetingUrl      String?
+  status          String       @default("SCHEDULED") // SCHEDULED | LIVE | EXPIRED | CANCELLED
+  createdAt       DateTime     @default(now())
+
+  @@index([organizationId, startAt])
 }

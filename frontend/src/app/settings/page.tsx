@@ -196,8 +196,8 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      <Link href="/dashboard" className="text-center text-sm text-gray-600 underline">
-        Retour au dashboard
+      <Link href="/club" className="text-center text-sm text-gray-600 underline">
+        Retour au Club
       </Link>
     </main>
   );

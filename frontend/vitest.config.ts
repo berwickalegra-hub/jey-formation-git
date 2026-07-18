@@ -17,6 +17,13 @@ export default defineConfig({
     // test module imports `@/lib/server/auth` (which throws at import time
     // when JWT_SECRET is missing or < 32 chars).
     setupFiles: ['./vitest.setup.ts'],
+    // Several suites exercise real bcrypt (cost 12) hashing/comparison —
+    // deliberately slow by design (timing-attack mitigation, cf. auth/pin.ts).
+    // Under Vitest's default parallel worker pool, many of these running
+    // concurrently can oversubscribe a dev machine's CPU and blow past the
+    // 5000ms default per-test timeout even though each call is fast in
+    // isolation. Bump the timeout rather than reducing parallelism.
+    testTimeout: 15000,
   },
   resolve: {
     alias: {

@@ -50,3 +50,36 @@ export function paymentReceived(
     dedupeKey: `payment-received:${orderId}`,
   };
 }
+
+/** Club feed: someone commented on the recipient's post. */
+export function newPostComment(
+  postAuthorId: string,
+  postId: string,
+  commentId: string,
+  commenterName: string,
+): CreateNotificationInput {
+  return {
+    userId: postAuthorId,
+    type: 'NEW_POST_COMMENT',
+    title: 'Nouveau commentaire',
+    body: `${commenterName} a commenté ta publication.`,
+    data: { postId, commentId },
+    dedupeKey: `new-post-comment:${commentId}`,
+  };
+}
+
+/** Club feed: someone liked the recipient's post (deduped per liker+post). */
+export function newPostLike(
+  postAuthorId: string,
+  postId: string,
+  likerId: string,
+): CreateNotificationInput {
+  return {
+    userId: postAuthorId,
+    type: 'NEW_POST_LIKE',
+    title: 'Nouveau j’aime',
+    body: 'Quelqu’un a aimé ta publication.',
+    data: { postId, likerId },
+    dedupeKey: `new-post-like:${postId}:${likerId}`,
+  };
+}

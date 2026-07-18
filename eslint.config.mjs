@@ -21,6 +21,8 @@ export default tseslint.config(
       // Bundled reference skill — provider examples + docs, not production
       // code. Same rationale as examples/**: illustrative for forkers.
       '.claude/skills/izisaas-payments-handler/**',
+      // Vendored Claude Code agent/skill tooling — not project code.
+      '.agent/**',
     ],
   },
   js.configs.recommended,
